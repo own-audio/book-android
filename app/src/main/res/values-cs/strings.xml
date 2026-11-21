@@ -5,4 +5,28 @@
     <string name="tab_downloads">Stažené</string>
     <string name="tab_search">Hledat</string>
     <string name="placeholder_coming">Tahle obrazovka se ještě staví.</string>
+    <!-- B5: the books app's own wording. -->
+    <string name="onboarding_tagline">Vaše audioknihy z vašeho vlastního serveru.</string>
+    <string name="onboarding_no_server_text">own.audio vaše audioknihy uchová za vás. Jednou je nahrajte a poslouchejte je tady.</string>
+    <string name="onboarding_demo_footnote">Volně dostupné knihy na sdíleném serveru own.audio, bez účtu.</string>
+    <string name="onboarding_note_sign_in">Přihlášení zůstává zašifrované v tomto zařízení; oba druhy serverů vydávají tokeny a heslo se neukládá.</string>
+    <string name="onboarding_note_accounts">own.audio: e-mail a heslo vašeho účtu. Audiobookshelf: vaše uživatelské jméno a heslo.</string>
+    <string name="user_name_or_email">Uživatelské jméno nebo e-mail</string>
+    <string name="with_your_own_audio_account">S vaším účtem own.audio.</string>
+    <string name="address_placeholder">books.example.com</string>
+    <string name="add_server_placeholder">books.example.com nebo 192.168.1.20:13378</string>
+    <string name="add_server_footer">Funguje s own.audio i Audiobookshelf; aplikace sama pozná, o který jde. Bez http:// nebo https:// zkusí https a pak http. Přihlášení zůstává zašifrované v tomto zařízení.</string>
+    <string name="servers_footer">Knihovna zobrazuje vybraný server. Rozehraná kniha hraje dál, i když server přepnete.</string>
+    <string name="sign_in_refused_short">Přihlášení odmítnuto · Přihlaste se znovu</string>
+    <string name="about_footer">own.audio Books je zdarma a open source (MPL-2.0). Mluví jen se servery, které přidáte.</string>
+    <string name="members_footer">Co do knihovny přidáte, je vaše. Knihu sdílejte z její nabídky; pak si ji může poslechnout každý v rodině, každý od své vlastní pozice.</string>
+    <string name="error_no_book_library">Tento účet nemá na tomto serveru přístup k žádné knihovně knih.</string>
+    <string name="library">Knihovna</string>
+    <string name="library_footer">Knihovna knih, kterou aplikace ze serveru ukazuje. Je-li jich víc, má každá i vlastní položku v přepínači na kartě Domů.</string>
+    <string name="no_book_library_listed">Nepodařilo se vypsat žádnou knihovnu knih.</string>
+    <string name="loading">Načítám…</string>
+    <string name="offline">Offline</string>
+    <string name="offline_mode">Režim offline</string>
+    <string name="addresses_footer_own_audio">Server aplikaci sdělí své další adresy. Přidejte takovou, kterou nezná, třeba VPN jako Tailscale; v každé síti aplikace použije nejrychlejší, která odpovídá jako tento server.</string>
+    <string name="add_address_message">Další adresa, na které tento server odpovídá.</string>
 </resources>

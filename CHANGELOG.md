@@ -5,6 +5,7 @@ All notable changes to own.audio Books for Android. The format follows
 
 ## [Unreleased]
 
+- B5 and the app shell, ported from music-android: welcome, own.audio account, Try the Demo Library, Add Server for own.audio and Audiobookshelf (book libraries only, a library picker, the server's own icon), Settings, the server page, Family, Devices, Listening and Logs. A privacy policy (PRIVACY.md).
 - `:player:core` with the Media3 playback pieces (link resolver, data source chain, listening cache, session callback, skip commands), copied from music-android.
 - B2: the book library — one model over own.audio and Audiobookshelf, own.audio's catalogue on the phone (one Room database per server, fed by the sync snapshot and change feed; collections too), Audiobookshelf through its pages and shelves with one play session per book, the resume choice and the download eviction rules.
 - The spoken engine's logic (B3, part): one timeline across a book's files, chapter navigation, chapters read from the files themselves (MP4/M4B chapter tracks and Nero `chpl`, MP3 ID3 `CHAP`/`CTOC`, FLAC and Ogg comments) within 6 seconds, smart rewind, the end-of-chapter and end-of-book sleep modes, speed steps and their text.

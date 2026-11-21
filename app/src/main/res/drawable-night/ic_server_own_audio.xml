@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- own.audio's server logo (book-ios ServerLogo-dark.svg): the family around the core. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="100dp" android:height="100dp" android:viewportWidth="100" android:viewportHeight="100">
+    <path android:fillColor="#6E44FF" android:pathData="M39,50a11,11 0,1 0,22,0a11,11 0,1 0,-22,0z" />
+    <path android:strokeColor="#D2D2D7" android:strokeWidth="3.5" android:strokeLineCap="round" android:pathData="M35,62A20,20 0,0 0,65 62" />
+    <path android:strokeColor="#D2D2D7" android:strokeAlpha="0.6" android:strokeWidth="2.5" android:strokeLineCap="round" android:pathData="M28,70A30,30 0,0 0,72 70" />
+    <group android:rotation="0" android:pivotX="50" android:pivotY="50">
+        <path android:fillColor="#FABB05" android:pathData="M45,14a5,5 0,1 0,10,0a5,5 0,1 0,-10,0zM39,15a2.5,2.5 0,1 0,5,0a2.5,2.5 0,1 0,-5,0zM56,15a2.5,2.5 0,1 0,5,0a2.5,2.5 0,1 0,-5,0z" />
+    </group>
+    <group android:rotation="72" android:pivotX="50" android:pivotY="50">
+        <path android:fillColor="#29ABE2" android:pathData="M45,14a5,5 0,1 0,10,0a5,5 0,1 0,-10,0zM39,15a2.5,2.5 0,1 0,5,0a2.5,2.5 0,1 0,-5,0zM56,15a2.5,2.5 0,1 0,5,0a2.5,2.5 0,1 0,-5,0z" />
+    </group>
+    <group android:rotation="144" android:pivotX="50" android:pivotY="50">
+        <path android:fillColor="#FF3B30" android:pathData="M45,14a5,5 0,1 0,10,0a5,5 0,1 0,-10,0zM39,15a2.5,2.5 0,1 0,5,0a2.5,2.5 0,1 0,-5,0zM56,15a2.5,2.5 0,1 0,5,0a2.5,2.5 0,1 0,-5,0z" />
+    </group>
+    <group android:rotation="216" android:pivotX="50" android:pivotY="50">
+        <path android:fillColor="#FFCC00" android:pathData="M45,14a5,5 0,1 0,10,0a5,5 0,1 0,-10,0zM39,15a2.5,2.5 0,1 0,5,0a2.5,2.5 0,1 0,-5,0zM56,15a2.5,2.5 0,1 0,5,0a2.5,2.5 0,1 0,-5,0z" />
+    </group>
+    <group android:rotation="288" android:pivotX="50" android:pivotY="50">
+        <path android:fillColor="#34C759" android:pathData="M45,14a5,5 0,1 0,10,0a5,5 0,1 0,-10,0zM39,15a2.5,2.5 0,1 0,5,0a2.5,2.5 0,1 0,-5,0zM56,15a2.5,2.5 0,1 0,5,0a2.5,2.5 0,1 0,-5,0z" />
+    </group>
+</vector>
