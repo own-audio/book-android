@@ -7,6 +7,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -50,6 +53,8 @@ import audio.own.bookplayer.settings.LogsContent
 import audio.own.bookplayer.settings.SettingsContent
 import audio.own.bookplayer.settings.SettingsUi
 import audio.own.bookplayer.settings.shareLog
+import audio.own.bookplayer.player.PlayerActions
+import audio.own.bookplayer.player.PlayerContent
 import kotlinx.coroutines.launch
 
 private object Routes {
@@ -64,6 +69,7 @@ private object Routes {
     const val LISTENING = "listening/{id}"
     const val LOGS = "logs"
     const val LICENCES = "licences"
+    const val PLAYER = "player"
 }
 
 /** The whole app: the theme with the chosen accent, the pages, and the two-factor step over them. */
@@ -88,25 +94,17 @@ private fun AppNavHost(container: AppContainer, nav: NavHostController) {
     val scope = rememberCoroutineScope()
     val back: () -> Unit = { nav.popBackStack() }
     fun arg(entry: androidx.navigation.NavBackStackEntry) = entry.arguments?.getString("id").orEmpty()
+    OpenPlayerFromNotification(container) { nav.navigate(Routes.PLAYER) { launchSingleTop = true } }
 
     NavHost(nav, startDestination = Routes.MAIN) {
         composable(Routes.MAIN) {
             when {
                 !servers.loaded -> LoadingScreen()
                 servers.servers.isEmpty() -> WelcomeRoute(container, onAccount = { nav.navigate("account/${it.name}") })
-                else -> {
-                    val offlineMode by container.preferences.offlineMode.collectAsState(initial = false)
-                    TabsScreen(
-                        servers = servers.servers,
-                        activeId = servers.activeId,
-                        offlineMode = offlineMode,
-                        onSelectServer = { id, library -> scope.launch { container.servers.select(id, library) } },
-                        onOfflineMode = { on -> scope.launch { container.preferences.setOfflineMode(on) } },
-                        onSettings = { nav.navigate(Routes.SETTINGS) },
-                    )
-                }
+                else -> LibraryTabs(container, onOpenPlayer = { nav.navigate(Routes.PLAYER) }, onSettings = { nav.navigate(Routes.SETTINGS) })
             }
         }
+        composable(Routes.PLAYER) { PlayerRoute(container, onClose = back) }
         composable(Routes.ACCOUNT) { entry ->
             val mode = AccountMode.valueOf(entry.arguments?.getString("mode") ?: AccountMode.SIGN_IN.name)
             val vm = viewModel { OwnAudioAccountViewModel(mode, container.servers, container.log, GoogleSignIn.isAvailable) }
@@ -126,6 +124,7 @@ private fun AppNavHost(container: AppContainer, nav: NavHostController) {
         }
         composable(Routes.SETTINGS) {
             val context = LocalContext.current
+            val playbackPrefs by container.playbackSettings.prefs.collectAsStateWithLifecycle()
             SettingsContent(
                 ui = SettingsUi(
                     servers = servers.servers,
@@ -134,7 +133,9 @@ private fun AppNavHost(container: AppContainer, nav: NavHostController) {
                     language = AppLanguage.current(),
                     version = "${container.versionName} (${container.versionCode})",
                     refused = servers.servers.map { it.id }.filter(servers::isRefused).toSet(),
+                    playback = playbackPrefs,
                 ),
+                onPlayback = { change -> scope.launch { container.playbackSettings.update(change) } },
                 onBack = back,
                 onOpenServer = { nav.navigate("server/$it") },
                 onRemoveServer = { id -> container.servers.scopeLaunch { container.servers.remove(id) } },
@@ -261,6 +262,24 @@ private fun AppNavHost(container: AppContainer, nav: NavHostController) {
     }
 }
 
+/** A tap on the media notification opens the player. */
+@Composable
+private fun OpenPlayerFromNotification(container: AppContainer, open: () -> Unit) {
+    val context = LocalContext.current
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        val activity = context.findActivity() as? androidx.activity.ComponentActivity
+        fun handle(intent: android.content.Intent?) {
+            if (intent?.getBooleanExtra(audio.own.bookplayer.MainActivity.EXTRA_OPEN_PLAYER, false) != true) return
+            intent.removeExtra(audio.own.bookplayer.MainActivity.EXTRA_OPEN_PLAYER)
+            if (container.playback.state.value.hasBook) open()
+        }
+        handle(activity?.intent)
+        val listener = androidx.core.util.Consumer<android.content.Intent> { handle(it) }
+        activity?.addOnNewIntentListener(listener)
+        onDispose { activity?.removeOnNewIntentListener(listener) }
+    }
+}
+
 @Composable
 private fun accent(container: AppContainer): AccentChoice {
     val value by container.preferences.accent.collectAsState(initial = AccentChoice.APP)
@@ -315,4 +334,49 @@ private fun TwoFactorOverlay(container: AppContainer) {
             TwoFactorContent(state, onCode = vm::setCode, onCheck = vm::check, onCancel = vm::cancel)
         }
     }
+}
+
+/** The full player over everything, from the mini player. */
+@Composable
+private fun PlayerRoute(container: AppContainer, onClose: () -> Unit) {
+    val state by container.playback.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    var bookmarks by remember { mutableStateOf<List<audio.own.book.library.Bookmark>?>(null) }
+    val playback = container.playback
+    PlayerContent(
+        state = state,
+        actions = PlayerActions(
+            onClose = onClose,
+            onStop = { playback.stop(); onClose() },
+            onToggle = playback::toggle,
+            onSeek = playback::seek,
+            onSkipBack = playback::skipBack,
+            onSkipForward = playback::skipForward,
+            onPreviousChapter = playback::previousChapter,
+            onNextChapter = playback::nextChapter,
+            onSpeed = playback::setSpeed,
+            onSleep = playback::setSleep,
+            onSleepEnd = playback::setSleepEnd,
+            onExtendSleep = playback::extendSleep,
+            onCancelSleep = playback::cancelSleep,
+            onPlayFrom = { at ->
+                playback.seek(at)
+                if (!playback.state.value.isPlaying) playback.toggle()
+            },
+        ),
+        bookmarks = bookmarks,
+        onLoadBookmarks = {
+            bookmarks = null
+            val serverId = state.serverId
+            val bookId = state.bookId
+            scope.launch {
+                val source = serverId?.let { container.sources.source(it) }
+                bookmarks = if (source == null || bookId == null) {
+                    emptyList()
+                } else {
+                    runCatching { source.bookmarks(audio.own.book.library.BookId(bookId).bookId).sortedBy { it.positionMs } }.getOrDefault(emptyList())
+                }
+            }
+        },
+    )
 }

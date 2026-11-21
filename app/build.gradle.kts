@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     id("ownaudio.android.application")
     id("io.github.takahirom.roborazzi")
+    alias(libs.plugins.kotlin.serialization)
 }
 
 // Absent on CI and on a fresh clone: release then builds unsigned instead of failing.
@@ -43,6 +44,14 @@ dependencies {
     implementation(project(":core:servers"))
     implementation(project(":kit:ownaudio"))
     implementation(project(":kit:audiobookshelf"))
+    implementation(project(":library"))
+    implementation(libs.androidx.room.runtime)
+    implementation(project(":player:core"))
+    implementation(project(":player:spoken"))
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.exoplayer.hls)
+    implementation(libs.androidx.media3.session)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.activity.compose)
@@ -74,4 +83,6 @@ dependencies {
     testImplementation(libs.roborazzi)
     testImplementation(libs.roborazzi.compose)
     testImplementation(libs.roborazzi.junit.rule)
+    testImplementation(libs.androidx.media3.test.utils)
+    testImplementation(libs.androidx.media3.test.utils.robolectric)
 }

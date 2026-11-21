@@ -17,6 +17,14 @@ import audio.own.bookplayer.app.AppLog
 import audio.own.bookplayer.app.AppPreferences
 import audio.own.bookplayer.app.DataStorePreferences
 import audio.own.bookplayer.app.LoggingInterceptor
+import audio.own.bookplayer.library.BookSources
+import audio.own.bookplayer.playback.DataStorePlaybackSettings
+import audio.own.bookplayer.playback.PlaybackControls
+import audio.own.bookplayer.playback.BookLinkResolver
+import audio.own.bookplayer.playback.PlaybackEngine
+import audio.own.bookplayer.playback.PlaybackModel
+import androidx.media3.common.util.UnstableApi
+import audio.own.bookplayer.playback.PlaybackSettings
 import audio.own.bookplayer.servers.ServerDetector
 import audio.own.bookplayer.servers.ServerIcons
 import audio.own.bookplayer.servers.ServersModel
@@ -33,6 +41,7 @@ import okhttp3.OkHttpClient
  * service without any screen having started, so the playback dependencies will be created here,
  * eagerly, rather than from the UI.
  */
+@androidx.annotation.OptIn(UnstableApi::class)
 class AppContainer(context: Context) {
     private val app = context.applicationContext
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -66,7 +75,7 @@ class AppContainer(context: Context) {
 
     val serverIcons = ServerIcons(File(app.filesDir, "server-icons"), http, userAgent, { offline.isOffline }, log)
 
-    val servers = ServersModel(
+    val servers: ServersModel = ServersModel(
         store = serverStore,
         sessions = tokenSessions,
         http = http,
@@ -85,8 +94,28 @@ class AppContainer(context: Context) {
         acceptLanguage = { appLocale().toLanguageTag() },
         log = log,
         scope = scope,
-        onRemoved = { serverIcons.remove(it) },
+        onRemoved = { serverIcons.remove(it); sources.forget(it) },
     )
+
+    val sources: BookSources = BookSources(app, servers, log, scope, versionName)
+
+    val playbackSettings: PlaybackSettings = DataStorePlaybackSettings(app, scope)
+
+    private val linkResolver = BookLinkResolver(sources)
+
+    val playbackModel: PlaybackModel = PlaybackModel(
+        context = app,
+        sources = sources,
+        settings = playbackSettings,
+        network = network.state,
+        offline = offline,
+        log = log,
+        filesDir = app.filesDir,
+        engineFactory = { PlaybackEngine(app, linkResolver, http, userAgent, { network.state.value.connected }, kotlinx.coroutines.MainScope()) },
+    )
+
+    /** What the screens play through. */
+    val playback: PlaybackControls = playbackModel
 
     /** The header of a shared log: which app, which system. */
     val logHeader: String get() = "own.book $versionName ($versionCode), Android ${Build.VERSION.RELEASE}, ${Build.MANUFACTURER} ${Build.MODEL}"

@@ -2,11 +2,14 @@ package audio.own.bookplayer
 
 import android.app.Application
 import audio.own.bookplayer.servers.ConnectionState
-import audio.own.core.servers.MobileData
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
-class OwnAudioApp : Application() {
+class OwnAudioApp : Application(), SingletonImageLoader.Factory {
     lateinit var container: AppContainer
         private set
 
@@ -24,10 +27,18 @@ class OwnAudioApp : Application() {
                 }
             }
         }
-        // The mobile-data choice comes with the settings (B9); until then streaming is Original.
         container.scope.launch {
-            combine(container.network.state, container.preferences.offlineMode) { network, offlineMode -> network to offlineMode }
-                .collect { (network, offlineMode) -> container.offline.update(offlineMode, network, MobileData.ORIGINAL) }
+            combine(container.network.state, container.preferences.offlineMode, container.playbackSettings.prefs) { network, offlineMode, prefs ->
+                Triple(network, offlineMode, prefs.mobileData)
+            }.collect { (network, offlineMode, mobileData) -> container.offline.update(offlineMode, network, mobileData) }
         }
+        // Positions saved while the app was away go out now.
+        container.playbackModel.flush()
     }
+
+    /** Covers through the app's client (no Authorization header), cached by record rather than by URL. */
+    override fun newImageLoader(context: PlatformContext): ImageLoader =
+        ImageLoader.Builder(context)
+            .components { add(OkHttpNetworkFetcherFactory(callFactory = { container.http })) }
+            .build()
 }

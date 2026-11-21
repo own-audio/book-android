@@ -20,8 +20,8 @@ are described there once for all three Android apps. The foundation is built in
 | B0 | Copy the foundation from music-android, make it own.book | ◐ skeleton 2026-11-21 |
 | B1 | `:kit:audiobookshelf` | ☑ 2026-11-21 |
 | B2 | Book library layer, own.audio and Audiobookshelf sources, catalogue database | ◐ built 2026-11-21, live tests pass on both servers; the debug list comes with the screens (B4) |
-| B3 | Spoken engine (`:player:spoken`) | ◐ logic done 2026-11-21 (timeline, chapters from MP4/M4B, ID3, FLAC/Ogg, smart rewind, sleep end modes, speed); Media3 player next |
-| B4 | Screens: Home, Library, book, people, series, collections, search, player | ☐ |
+| B3 | Spoken engine (`:player:spoken`) | ☑ 2026-11-21: the Media3 player (one timeline over the files, speed without pitch change, chapters as next/previous, look-ahead with "N min saved", held through signal gaps) |
+| B4 | Screens: Home, Library, book, people, series, collections, search, player | ◐ built 2026-11-21; a 12-file demo book and an Audiobookshelf book played on the emulator (speed, chapters and skips from the notification, position saved before sending and sent after a kill). Open: guide pages, cover refetch with a fresh link |
 | B5 | Welcome, sign-in, server page (Books specifics) | ◐ built 2026-11-21, tried on the demo and an Audiobookshelf server; "Library on This Device" comes with the catalogue sync (B6) |
 | B6 | Downloads, offline, set downloads, eviction | ☐ |
 | B7 | Positions: pending progress, resume choice, "Continue from another device?" | ☐ |
@@ -33,7 +33,7 @@ are described there once for all three Android apps. The foundation is built in
 | B13 | Localization, accessibility, tablets, misuse tests | ☐ |
 | B14 | Release | ☐ |
 
-**Where we stopped:** B0 skeleton and F1's look copied from music-android 2026-11-21; B1 done the same day (50 offline tests, a live round trip against Audiobookshelf 2.37). Notes from B1: play sessions send `mediaPlayer: "ExoPlayer"` and a MIME list for what Media3 decodes (Ogg/Opus/WebM in, AIFF out); a 429 waits by `Retry-After` (at most 2 retries, 30 s each) and then throws `RateLimited`; `DeviceInfo` needs a real manufacturer and model. Next: B2 once F2/F3 land in music-android.
+**Where we stopped:** B4 built 2026-11-21 — books play from own.audio and Audiobookshelf. Next: B6 downloads (reusing music-android's `:core:downloads`), B7 positions (the "Continue from another device?" dialog, `applied:false`, `/sync/push`), B8.
 
 ## Rules for whoever executes this plan
 

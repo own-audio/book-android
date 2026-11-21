@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- One chapter per file when a book has no chapter marks. -->
+    <string name="part_n">Part %1$d</string>
+    <string name="chapter_n">Chapter %1$d</string>
+    <string name="playback_failed">This part of the book couldn\'t be played.</string>
+</resources>

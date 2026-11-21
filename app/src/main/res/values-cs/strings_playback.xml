@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="part_n">Část %1$d</string>
+    <string name="chapter_n">Kapitola %1$d</string>
+    <string name="playback_failed">Tuto část knihy se nepodařilo přehrát.</string>
+</resources>

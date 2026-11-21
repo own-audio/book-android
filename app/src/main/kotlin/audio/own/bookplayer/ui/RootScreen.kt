@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -78,10 +79,9 @@ fun currentChoice(servers: List<ServerRecord>, activeId: String?): ServerChoice?
 }
 
 /**
- * The tabs. Home's bar has the server switch (with more than one choice; the library shows one
- * server and library at a time), Offline Mode and the gear that opens Settings.
+ * The tabs, with the offline banner and the mini player above the navigation bar on every tab.
+ * [content] draws a tab; without one, Home shows its bar over a placeholder.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TabsScreen(
     servers: List<ServerRecord> = emptyList(),
@@ -90,43 +90,69 @@ fun TabsScreen(
     onSelectServer: (String, String?) -> Unit = { _, _ -> },
     onOfflineMode: (Boolean) -> Unit = {},
     onSettings: () -> Unit = {},
+    selected: Tab? = null,
+    onSelect: ((Tab) -> Unit)? = null,
+    banner: @Composable () -> Unit = {},
+    miniPlayer: @Composable () -> Unit = {},
+    content: (@Composable (Tab) -> Unit)? = null,
 ) {
-    var selected by rememberSaveable { mutableStateOf(Tab.HOME) }
+    var own by rememberSaveable { mutableStateOf(Tab.HOME) }
+    val tab = selected ?: own
     NavigationSuiteScaffold(
         navigationSuiteItems = {
-            Tab.entries.forEach { tab ->
+            Tab.entries.forEach { item ->
                 item(
-                    selected = tab == selected,
-                    onClick = { selected = tab },
-                    icon = { Icon(tab.icon, contentDescription = null) },
-                    label = { Text(stringResource(tab.title)) },
+                    selected = item == tab,
+                    onClick = { if (onSelect != null) onSelect(item) else own = item },
+                    icon = { Icon(item.icon, contentDescription = null) },
+                    label = { Text(stringResource(item.title)) },
                 )
             }
         },
     ) {
-        Scaffold(
-            topBar = {
-                if (selected == Tab.HOME) {
-                    val choices = serverChoices(servers)
-                    TopAppBar(
-                        title = { Text(stringResource(Tab.HOME.title)) },
-                        actions = {
-                            if (choices.size > 1) ServerMenu(choices, currentChoice(servers, activeId), onSelectServer)
-                            IconToggleButton(checked = offlineMode, onCheckedChange = onOfflineMode) {
-                                Icon(if (offlineMode) Icons.Filled.WifiOff else Icons.Filled.Wifi, contentDescription = stringResource(R.string.offline_mode))
-                            }
-                            IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, contentDescription = stringResource(SR.string.settings)) }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-                    )
+        Column(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f)) {
+                if (content != null) {
+                    content(tab)
+                } else {
+                    Scaffold(
+                        topBar = { if (tab == Tab.HOME) HomeTopBar(servers, activeId, offlineMode, onSelectServer, onOfflineMode, onSettings) },
+                    ) { inner ->
+                        Box(Modifier.fillMaxSize().padding(inner).padding(16.dp), contentAlignment = Alignment.Center) {
+                            Text(stringResource(R.string.placeholder_coming), style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
                 }
-            },
-        ) { inner ->
-            Box(Modifier.fillMaxSize().padding(inner).padding(16.dp), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.placeholder_coming), style = MaterialTheme.typography.bodyLarge)
             }
+            banner()
+            miniPlayer()
         }
     }
+}
+
+/** Home's bar: the server switch (with more than one choice), Offline Mode and Settings. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeTopBar(
+    servers: List<ServerRecord>,
+    activeId: String?,
+    offlineMode: Boolean,
+    onSelectServer: (String, String?) -> Unit,
+    onOfflineMode: (Boolean) -> Unit,
+    onSettings: () -> Unit,
+) {
+    val choices = serverChoices(servers)
+    TopAppBar(
+        title = { Text(stringResource(Tab.HOME.title)) },
+        actions = {
+            if (choices.size > 1) ServerMenu(choices, currentChoice(servers, activeId), onSelectServer)
+            IconToggleButton(checked = offlineMode, onCheckedChange = onOfflineMode) {
+                Icon(if (offlineMode) Icons.Filled.WifiOff else Icons.Filled.Wifi, contentDescription = stringResource(R.string.offline_mode))
+            }
+            IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, contentDescription = stringResource(SR.string.settings)) }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+    )
 }
 
 @Composable

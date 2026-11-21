@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home -->
+    <string name="good_morning">Good morning</string>
+    <string name="good_afternoon">Good afternoon</string>
+    <string name="good_evening">Good evening</string>
+    <string name="greeting_server">%1$s · ready for your next chapter?</string>
+    <string name="greeting_no_server">Ready for your next chapter?</string>
+    <string name="nothing_downloaded">Nothing Downloaded</string>
+    <string name="nothing_downloaded_offline">Offline, only downloaded books are here. Turn Offline Mode off, or download books to listen with no network.</string>
+    <string name="no_books_yet">No Books Yet</string>
+    <string name="library_empty_server">This server\'s library is empty.</string>
+    <string name="shelf_continue_listening">Continue Listening</string>
+    <string name="shelf_recently_added">Recently Added</string>
+    <string name="shelf_listen_again">Listen Again</string>
+    <string name="shelf_on_this_device">On This Device</string>
+    <string name="show_book">Show Book</string>
+    <plurals name="books_count">
+        <item quantity="one">%1$d book</item>
+        <item quantity="other">%1$d books</item>
+    </plurals>
+    <string name="downloads_later">Downloaded books appear here, from every server.</string>
+
+    <!-- Library -->
+    <string name="series">Series</string>
+    <string name="authors">Authors</string>
+    <string name="narrators">Narrators</string>
+    <string name="collections">Collections</string>
+    <string name="all_books">All Books</string>
+    <string name="sort">Sort</string>
+    <string name="sort_title">Title</string>
+    <string name="sort_author">Author</string>
+    <string name="sort_added">Recently Added</string>
+    <string name="sort_length">Length</string>
+    <string name="descending">Descending</string>
+    <string name="show">Show</string>
+    <string name="filter_all">All</string>
+    <string name="filter_not_started">Not Started</string>
+    <string name="filter_in_progress">In Progress</string>
+    <string name="filter_finished">Finished</string>
+    <string name="filter_favorites">Favorites</string>
+    <string name="grid">Grid</string>
+    <string name="sort_and_filter">Sort and filter</string>
+    <string name="no_books">No Books</string>
+    <string name="empty_all">This library has no books yet.</string>
+    <string name="empty_not_started">Every book has been started.</string>
+    <string name="empty_in_progress">No book is in progress.</string>
+    <string name="empty_finished">No book is finished yet.</string>
+    <string name="empty_favorites">No favorite books yet. Mark one with the heart in its menu.</string>
+    <string name="nobody_here_yet">Nobody here yet.</string>
+    <string name="filter">Filter</string>
+    <string name="no_series_yet">No series yet.</string>
+    <string name="no_collections_yet">No collections yet.</string>
+
+    <!-- Durations -->
+    <string name="length_hours">%1$d h</string>
+    <string name="length_hours_minutes">%1$d h %2$d min</string>
+    <string name="length_minutes">%1$d min</string>
+    <string name="length_and_left">%1$s · %2$s left</string>
+    <string name="time_left">%1$s left</string>
+    <string name="finished">Finished</string>
+
+    <!-- Book -->
+    <string name="description">Description</string>
+    <string name="details">Details</string>
+    <string name="narrator">Narrator</string>
+    <string name="length">Length</string>
+    <string name="published">Published</string>
+    <string name="publisher">Publisher</string>
+    <string name="genres">Genres</string>
+    <string name="files">Files</string>
+    <string name="chapters">Chapters</string>
+    <string name="bookmarks">Bookmarks</string>
+    <string name="play_continue">Continue Listening</string>
+    <string name="play_again">Listen Again</string>
+    <string name="resume">Resume</string>
+    <string name="shared_with_the_family">Shared with the family</string>
+    <string name="no_chapter_marks">No chapter marks. The files are the chapters.</string>
+    <string name="no_bookmarks_book">No bookmarks yet. Add one from the player.</string>
+    <string name="file_n">File %1$d</string>
+    <string name="bookmark">Bookmark</string>
+    <string name="add_to_favorites">Add to Favorites</string>
+    <string name="remove_favorite">Remove Favorite</string>
+    <string name="series_number">%1$s #%2$s</string>
+    <string name="show_more">Show more</string>
+    <string name="show_less">Show less</string>
+
+    <!-- Search -->
+    <string name="search_the_library">Search the Library</string>
+    <string name="search_the_library_text">Titles, authors, narrators and series.</string>
+    <string name="search_prompt">Books, authors, narrators</string>
+    <string name="books">Books</string>
+    <string name="no_results">No Results</string>
+    <string name="no_results_text">No results for “%1$s”. Check the spelling or try a new search.</string>
+
+    <!-- Mini player and player -->
+    <string name="no_signal_waiting">No signal — waiting</string>
+    <plurals name="skip_forward_seconds">
+        <item quantity="one">Skip forward %1$d second</item>
+        <item quantity="other">Skip forward %1$d seconds</item>
+    </plurals>
+    <plurals name="back_seconds">
+        <item quantity="one">Back %1$d second</item>
+        <item quantity="other">Back %1$d seconds</item>
+    </plurals>
+    <plurals name="forward_seconds">
+        <item quantity="one">Forward %1$d second</item>
+        <item quantity="other">Forward %1$d seconds</item>
+    </plurals>
+    <string name="previous_chapter">Previous chapter</string>
+    <string name="next_chapter">Next chapter</string>
+    <string name="close">Close</string>
+    <string name="stop">Stop</string>
+    <string name="chapter_label">Chapter: %1$s</string>
+    <string name="min_saved">%1$d min saved</string>
+    <string name="speed_label">Speed %1$s</string>
+    <string name="speed">Speed</string>
+    <string name="sleep_timer">Sleep Timer</string>
+    <string name="sleep">Sleep</string>
+    <string name="output">Output</string>
+    <string name="slower">Slower</string>
+    <string name="faster">Faster</string>
+    <string name="speed_footer">Pitch stays the same at any speed. The speed is remembered for this book.</string>
+    <string name="stops_in">Stops in</string>
+    <string name="add_10_minutes">Add 10 Minutes</string>
+    <string name="stops_end_of_chapter">Stops at the end of this chapter</string>
+    <string name="stops_end_of_book">Stops at the end of the book</string>
+    <string name="end_of_chapter">End of Chapter</string>
+    <string name="end_of_book">End of Book</string>
+    <plurals name="n_minutes">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <string name="playing">Playing</string>
+    <string name="no_bookmarks_in_book">No bookmarks in this book yet.</string>
+    <string name="nothing_playing">Nothing Playing</string>
+    <string name="opens_the_player">Opens the player</string>
+    <string name="time_of">%1$s of %2$s</string>
+
+    <!-- Settings -->
+    <string name="playback">Playback</string>
+    <string name="skip_back">Skip Back</string>
+    <string name="skip_forward">Skip Forward</string>
+    <string name="speed_for_new_books">Speed for New Books</string>
+    <string name="smart_rewind">Smart Rewind</string>
+    <string name="streaming">Streaming</string>
+    <string name="on_mobile_data">On Mobile Data</string>
+    <string name="mobile_original">Original</string>
+    <string name="mobile_saver">Saver</string>
+    <string name="mobile_downloaded_only">Downloaded Only</string>
+    <string name="keep_ahead">Keep Ahead</string>
+    <string name="seconds_short">%1$d s</string>
+    <string name="streaming_footer_saver">Saver asks the server for a smaller stream where it makes one (%1$d kbps is plenty for speech). Downloaded Only plays nothing that is not on this device.</string>
+    <string name="streaming_footer_keep_ahead">While a book streams, its next minutes are kept on this device, on mobile data too, so a tunnel or a gap in the signal goes unheard; with Data Saver on, 5 minutes. Saver streams are not kept.</string>
+    <string name="banner_offline_mode">Offline Mode · downloaded books only</string>
+    <string name="banner_no_network">No network · downloaded books only</string>
+</resources>

@@ -1,5 +1,10 @@
 package audio.own.bookplayer.settings
 
+import audio.own.bookplayer.playback.PlaybackPrefs
+import audio.own.core.designsystem.components.SwitchRow
+import audio.own.core.servers.MobileData
+import audio.own.player.spoken.SpeedText
+
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -97,6 +102,7 @@ data class SettingsUi(
     val version: String,
     /** Servers that refuse the saved sign-in. */
     val refused: Set<String> = emptySet(),
+    val playback: PlaybackPrefs = PlaybackPrefs(),
 )
 
 @Composable
@@ -110,7 +116,9 @@ fun SettingsContent(
     onLanguage: (AppLanguage) -> Unit,
     onLicences: () -> Unit,
     onLogs: () -> Unit,
+    onPlayback: ((PlaybackPrefs) -> PlaybackPrefs) -> Unit = {},
 ) {
+    var choosing by remember { mutableStateOf<PlaybackChoice?>(null) }
     var removing by remember { mutableStateOf<ServerRecord?>(null) }
     var choosingLanguage by remember { mutableStateOf(false) }
     val links = LocalUriHandler.current
@@ -122,6 +130,8 @@ fun SettingsContent(
             }
             ButtonRow(stringResource(R.string.add_a_server), onClick = onAddServer, icon = Icons.Filled.Add, color = MaterialTheme.colorScheme.primary)
         }
+
+        PlaybackSections(ui.playback, onChoose = { choosing = it }, onPlayback = onPlayback)
 
         AccentColorPicker(selected = ui.accent, onSelect = onAccent)
 
@@ -145,6 +155,9 @@ fun SettingsContent(
 
     removing?.let { server ->
         RemoveServerDialog(server.displayName, onConfirm = { onRemoveServer(server.id); removing = null }, onDismiss = { removing = null })
+    }
+    choosing?.let { choice ->
+        ChoiceDialog(choice, ui.playback, onPick = { change -> onPlayback(change); choosing = null }, onDismiss = { choosing = null })
     }
     if (choosingLanguage) {
         LanguageDialog(ui.language, onChoose = { onLanguage(it); choosingLanguage = false }, onDismiss = { choosingLanguage = false })
@@ -234,6 +247,85 @@ private fun LanguageDialog(current: AppLanguage, onChoose: (AppLanguage) -> Unit
                     ) {
                         RadioButton(selected = language == current, onClick = null)
                         Text(language.endonym(system), modifier = Modifier.padding(start = Tokens.Spacing.md))
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+/** The pickers of the Playback and Streaming sections. */
+enum class PlaybackChoice { SKIP_BACK, SKIP_FORWARD, SPEED, MOBILE_DATA, KEEP_AHEAD }
+
+private val NEW_BOOK_SPEEDS = listOf(0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
+
+@Composable
+private fun mobileDataLabel(choice: MobileData) = stringResource(
+    when (choice) {
+        MobileData.ORIGINAL -> AppR.string.mobile_original
+        MobileData.SAVER -> AppR.string.mobile_saver
+        MobileData.DOWNLOADED_ONLY -> AppR.string.mobile_downloaded_only
+    },
+)
+
+@Composable
+private fun PlaybackSections(prefs: PlaybackPrefs, onChoose: (PlaybackChoice) -> Unit, onPlayback: ((PlaybackPrefs) -> PlaybackPrefs) -> Unit) {
+    Section(header = stringResource(AppR.string.playback)) {
+        // Back before forward, as the buttons sit in the player.
+        ValueRow(stringResource(AppR.string.skip_back), stringResource(AppR.string.seconds_short, prefs.skipBackSecs), onClick = { onChoose(PlaybackChoice.SKIP_BACK) })
+        RowDivider()
+        ValueRow(stringResource(AppR.string.skip_forward), stringResource(AppR.string.seconds_short, prefs.skipForwardSecs), onClick = { onChoose(PlaybackChoice.SKIP_FORWARD) })
+        RowDivider()
+        ValueRow(stringResource(AppR.string.speed_for_new_books), SpeedText.text(prefs.defaultSpeed), onClick = { onChoose(PlaybackChoice.SPEED) })
+        RowDivider()
+        SwitchRow(stringResource(AppR.string.smart_rewind), prefs.smartRewind, onCheckedChange = { on -> onPlayback { it.copy(smartRewind = on) } })
+    }
+    Section(
+        header = stringResource(AppR.string.streaming),
+        footer = stringResource(AppR.string.streaming_footer_saver, PlaybackPrefs.SAVER_BITRATE_KBPS) + "\n\n" + stringResource(AppR.string.streaming_footer_keep_ahead),
+    ) {
+        ValueRow(stringResource(AppR.string.on_mobile_data), mobileDataLabel(prefs.mobileData), onClick = { onChoose(PlaybackChoice.MOBILE_DATA) })
+        RowDivider()
+        ValueRow(stringResource(AppR.string.keep_ahead), stringResource(AppR.string.length_minutes, prefs.lookAheadMinutes), onClick = { onChoose(PlaybackChoice.KEEP_AHEAD) })
+    }
+}
+
+@Composable
+private fun ChoiceDialog(choice: PlaybackChoice, prefs: PlaybackPrefs, onPick: ((PlaybackPrefs) -> PlaybackPrefs) -> Unit, onDismiss: () -> Unit) {
+    data class Option(val label: String, val selected: Boolean, val change: (PlaybackPrefs) -> PlaybackPrefs)
+    val (title, options) = when (choice) {
+        PlaybackChoice.SKIP_BACK -> stringResource(AppR.string.skip_back) to PlaybackPrefs.SKIP_CHOICES.map { secs ->
+            Option(stringResource(AppR.string.seconds_short, secs), secs == prefs.skipBackSecs) { it.copy(skipBackSecs = secs) }
+        }
+        PlaybackChoice.SKIP_FORWARD -> stringResource(AppR.string.skip_forward) to PlaybackPrefs.SKIP_CHOICES.map { secs ->
+            Option(stringResource(AppR.string.seconds_short, secs), secs == prefs.skipForwardSecs) { it.copy(skipForwardSecs = secs) }
+        }
+        PlaybackChoice.SPEED -> stringResource(AppR.string.speed_for_new_books) to NEW_BOOK_SPEEDS.map { speed ->
+            Option(SpeedText.text(speed), speed == prefs.defaultSpeed) { it.copy(defaultSpeed = speed) }
+        }
+        PlaybackChoice.MOBILE_DATA -> stringResource(AppR.string.on_mobile_data) to MobileData.entries.map { mode ->
+            Option(mobileDataLabel(mode), mode == prefs.mobileData) { it.copy(mobileData = mode) }
+        }
+        PlaybackChoice.KEEP_AHEAD -> stringResource(AppR.string.keep_ahead) to PlaybackPrefs.LOOK_AHEAD_CHOICES.map { minutes ->
+            Option(stringResource(AppR.string.length_minutes, minutes), minutes == prefs.lookAheadMinutes) { it.copy(lookAheadMinutes = minutes) }
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column {
+                options.forEach { option ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = Tokens.minTarget)
+                            .selectable(selected = option.selected, role = Role.RadioButton) { onPick(option.change) },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = option.selected, onClick = null)
+                        Text(option.label, modifier = Modifier.padding(start = Tokens.Spacing.md))
                     }
                 }
             }
