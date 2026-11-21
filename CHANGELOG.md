@@ -5,6 +5,7 @@ All notable changes to own.audio Books for Android. The format follows
 
 ## [Unreleased]
 
+- `:core:downloads` and `:core:sync` (download workers and index, outboxes, background refresh, live updates), copied from music-android.
 - B3 and B4: the spoken player on Media3 and the book screens — Home with shelves, Library (series, authors, narrators, collections; sort, filter, grid or list), the book page with chapters, files and bookmarks, Search, the mini player and the player (chapter slider, speed, sleep timer, chapters); plays in the background with skip and chapter buttons on the notification; positions written to disk before they are sent. Players now wait through long signal gaps instead of failing after ten minutes.
 - B5 and the app shell, ported from music-android: welcome, own.audio account, Try the Demo Library, Add Server for own.audio and Audiobookshelf (book libraries only, a library picker, the server's own icon), Settings, the server page, Family, Devices, Listening and Logs. A privacy policy (PRIVACY.md).
 - `:player:core` with the Media3 playback pieces (link resolver, data source chain, listening cache, session callback, skip commands), copied from music-android.
