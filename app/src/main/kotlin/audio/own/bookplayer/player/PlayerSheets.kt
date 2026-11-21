@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -29,6 +30,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -40,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import audio.own.book.library.Bookmark
 import audio.own.bookplayer.R
+import audio.own.bookplayer.app.text
 import audio.own.bookplayer.browse.clock
 import audio.own.bookplayer.playback.PlaybackUi
 import audio.own.bookplayer.playback.SleepUi
@@ -191,26 +198,53 @@ fun ChaptersSheetContent(state: PlaybackUi, onPick: (Long) -> Unit, onDone: () -
 }
 
 @Composable
-fun BookmarksSheet(bookmarks: List<Bookmark>?, onPick: (Long) -> Unit, onDismiss: () -> Unit) = Sheet(onDismiss) { BookmarksSheetContent(bookmarks, onPick, onDismiss) }
+fun BookmarksSheet(state: BookmarksState, positionMs: Long, actions: BookmarkSheetActions, onDismiss: () -> Unit) =
+    Sheet(onDismiss) { BookmarksSheetContent(state, positionMs, actions, onDismiss) }
 
-/** The book's bookmarks; a tap jumps there. Adding, renaming and deleting come with B8. */
+/** What the bookmarks sheet does with the book in the player. */
+data class BookmarkSheetActions(
+    val onPick: (Long) -> Unit = {},
+    val onAdd: (positionMs: Long, label: String) -> Unit = { _, _ -> },
+    val onRename: (Bookmark, String) -> Unit = { _, _ -> },
+    val onDelete: (Bookmark) -> Unit = {},
+    val onDismissError: () -> Unit = {},
+)
+
+/**
+ * The book's bookmarks (book-ios `BookmarksSheet`): "Add Bookmark at 12:34" asks for an
+ * optional label; a tap jumps there; swipe or the menu renames or deletes. Online only.
+ */
 @Composable
-fun BookmarksSheetContent(bookmarks: List<Bookmark>?, onPick: (Long) -> Unit, onDone: () -> Unit) {
+fun BookmarksSheetContent(state: BookmarksState, positionMs: Long, actions: BookmarkSheetActions, onDone: () -> Unit, initiallyAdding: Boolean = false) {
     val palette = LocalPalette.current
+    var adding by rememberSaveable { mutableStateOf(initiallyAdding) }
+    // The position when Add was tapped, not where playback has moved on to while typing.
+    var addAt by rememberSaveable { mutableLongStateOf(positionMs) }
     Column(Modifier.padding(bottom = Tokens.Spacing.xl)) {
         SheetTitle(stringResource(R.string.bookmarks), onDone)
+        AddBookmarkRow(positionMs, state.offline) { addAt = positionMs; adding = true }
+        HorizontalDivider(color = palette.border)
+        val bookmarks = state.bookmarks
         when {
+            state.offline -> Unit
             bookmarks == null -> Box(Modifier.fillMaxWidth().padding(Tokens.Spacing.lg), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             bookmarks.isEmpty() -> Text(stringResource(R.string.no_bookmarks_in_book), color = palette.muted, modifier = Modifier.padding(Tokens.Spacing.lg))
             else -> LazyColumn {
-                itemsIndexed(bookmarks) { _, bookmark ->
-                    Column(Modifier.fillMaxWidth().heightIn(min = Tokens.minTarget).clickable { onPick(bookmark.positionMs) }.padding(horizontal = Tokens.Spacing.lg, vertical = Tokens.Spacing.sm)) {
-                        Text(bookmark.label ?: stringResource(R.string.bookmark), color = palette.foreground, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(clock(bookmark.positionMs), style = MaterialTheme.typography.bodySmall.tabular(), color = palette.muted)
-                    }
-                    HorizontalDivider(Modifier.padding(start = Tokens.Spacing.lg), color = palette.border)
+                items(bookmarks, key = { it.id }) { bookmark ->
+                    BookmarkRow(bookmark, BookmarkActions(onPick = { actions.onPick(it.positionMs) }, onRename = actions.onRename, onDelete = actions.onDelete))
                 }
             }
         }
     }
+    if (adding) {
+        LabelDialog(
+            title = stringResource(R.string.new_bookmark),
+            placeholder = stringResource(R.string.label_optional),
+            initial = "",
+            confirm = stringResource(SR.string.add),
+            onConfirm = { adding = false; actions.onAdd(addAt, it) },
+            onDismiss = { adding = false },
+        )
+    }
+    state.error?.let { audio.own.core.designsystem.components.ErrorAlert(it.text(), actions.onDismissError) }
 }

@@ -78,7 +78,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import audio.own.book.library.Bookmark
 import audio.own.bookplayer.R
 import audio.own.bookplayer.browse.BookSymbol
 import audio.own.bookplayer.browse.clock
@@ -128,7 +127,8 @@ data class PlayerActions(
 fun PlayerContent(
     state: PlaybackUi,
     actions: PlayerActions,
-    bookmarks: List<Bookmark>? = null,
+    bookmarks: BookmarksState = BookmarksState(),
+    bookmarkActions: BookmarkSheetActions = BookmarkSheetActions(),
     onLoadBookmarks: () -> Unit = {},
     initialSheet: PlayerSheet? = null,
 ) {
@@ -172,13 +172,19 @@ fun PlayerContent(
             Scrubbers(state, actions.onSeek)
             Transport(state, actions)
             Tools(state, onSheet = { sheet = it; if (it == PlayerSheet.BOOKMARKS) onLoadBookmarks() })
+            LaunchedEffect(Unit) { if (initialSheet == PlayerSheet.BOOKMARKS) onLoadBookmarks() }
         }
     }
     when (sheet) {
         PlayerSheet.SPEED -> SpeedSheet(state.speed, actions.onSpeed, onDismiss = { sheet = null })
         PlayerSheet.SLEEP -> SleepSheet(state.sleep, state.hasBook, actions, onDismiss = { sheet = null })
         PlayerSheet.CHAPTERS -> ChaptersSheet(state, onPick = { actions.onPlayFrom(it); sheet = null }, onDismiss = { sheet = null })
-        PlayerSheet.BOOKMARKS -> BookmarksSheet(bookmarks, onPick = { actions.onPlayFrom(it); sheet = null }, onDismiss = { sheet = null })
+        PlayerSheet.BOOKMARKS -> BookmarksSheet(
+            bookmarks,
+            state.positionMs,
+            bookmarkActions.copy(onPick = { actions.onPlayFrom(it); sheet = null }),
+            onDismiss = { sheet = null },
+        )
         null -> Unit
     }
 }

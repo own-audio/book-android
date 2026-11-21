@@ -13,7 +13,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.lifecycle.lifecycleScope
-import audio.own.book.library.ChangeFeedCatalogue
 import audio.own.bookplayer.ui.AppRoot
 import kotlinx.coroutines.launch
 
@@ -48,14 +47,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        container.playbackModel.flush()
-        val source = container.sources.active.value?.source as? ChangeFeedCatalogue ?: return
-        container.scope.launch { container.sources.sync(source) }
+        // Sends what is queued, and brings the catalogue and other devices' positions up to date.
+        container.playbackModel.setForeground(true)
     }
 
     override fun onStop() {
         // Going to the background saves the position at once.
         container.playbackModel.saveNow()
+        container.playbackModel.setForeground(false)
         super.onStop()
     }
 

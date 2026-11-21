@@ -17,9 +17,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircleOutline
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.HeartBroken
+import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material.icons.filled.Business
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Mic
@@ -29,6 +33,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Sell
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -40,8 +45,10 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,6 +61,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -63,6 +71,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import audio.own.book.library.Book
 import audio.own.book.library.BookId
+import audio.own.book.library.BookSharing
 import audio.own.book.library.BookSource
 import audio.own.book.library.Bookmark
 import audio.own.book.library.Capability
@@ -83,6 +92,8 @@ import audio.own.bookplayer.browse.progressSummary
 import audio.own.bookplayer.browse.sourceMessage
 import audio.own.bookplayer.browse.strippingHtml
 import audio.own.bookplayer.playback.PlaybackUi
+import audio.own.bookplayer.player.BookmarkActions
+import audio.own.bookplayer.player.BookmarkRow
 import audio.own.bookplayer.ui.Page
 import audio.own.core.designsystem.components.ErrorAlert
 import audio.own.core.designsystem.components.LoadStateView
@@ -104,26 +115,52 @@ data class BookState(
     val bookmarks: List<Bookmark> = emptyList(),
     val isFavourite: Boolean = false,
     val canFavourite: Boolean = false,
+    /** The listener's own book on a server with households: Share with the Family / Keep to Myself. */
+    val canShare: Boolean = false,
+    /** Bookmarks are online only. */
+    val offline: Boolean = false,
     val error: UiText? = null,
 )
 
-/** One book with its files and chapters, where the listener is, and their bookmarks. */
-class BookViewModel(private val source: BookSource?, private val bookId: String, known: Book? = null, private val isOffline: () -> Boolean = { false }) : ViewModel() {
-    private val _state = MutableStateFlow(BookState(book = known?.let { Load.Loaded(it) } ?: Load.Loading, canFavourite = Capability.FAVOURITES in source?.capabilities.orEmpty()))
+/**
+ * One book with its files and chapters, where the listener is, and their bookmarks; the book
+ * menu: favourite, share, finished, reset. [markFinished] and [resetProgress] go through playback,
+ * which lets go of the book first (book-ios `AppModel.markFinished`, `clearProgress`).
+ */
+class BookViewModel(
+    private val source: BookSource?,
+    private val bookId: String,
+    known: Book? = null,
+    private val isOffline: () -> Boolean = { false },
+    private val markFinished: suspend (Book, Boolean) -> Unit = { book, finished ->
+        source?.saveProgress(book.id, if (finished) book.durationMs else 0, book.durationMs, finished, java.time.Instant.now())
+    },
+    private val resetProgress: suspend (Book) -> Unit = { book -> source?.clearProgress(book.id) },
+    /** After a change of who sees the book: the catalogue catches up. */
+    private val onShared: () -> Unit = {},
+) : ViewModel() {
+    private val _state = MutableStateFlow(
+        BookState(book = known?.let { Load.Loaded(it) } ?: Load.Loading, canFavourite = Capability.FAVOURITES in source?.capabilities.orEmpty()).withSharing(known),
+    )
     val state: StateFlow<BookState> = _state.asStateFlow()
+
+    private val book: Book? get() = (_state.value.book as? Load.Loaded)?.value
 
     init {
         load()
     }
 
+    private fun BookState.withSharing(book: Book?): BookState =
+        copy(canShare = book != null && (source as? BookSharing)?.canShare(book) == true && Capability.FAMILY_SHARING in source.capabilities)
+
     fun load() {
         val source = source ?: return
         viewModelScope.launch {
-            val shown = (_state.value.book as? Load.Loaded)?.value
+            val shown = book
             if (shown?.files == null) {
                 try {
                     val detail = source.book(bookId)
-                    _state.update { it.copy(book = Load.Loaded(detail)) }
+                    _state.update { it.copy(book = Load.Loaded(detail)).withSharing(detail) }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -138,9 +175,16 @@ class BookViewModel(private val source: BookSource?, private val bookId: String,
     fun refresh() {
         val source = source ?: return
         viewModelScope.launch {
-            val progress = runCatching { source.progress(bookId) }.getOrNull()
-            _state.update { it.copy(progress = progress ?: it.progress) }
-            if (isOffline()) return@launch
+            val progress = try {
+                source.progress(bookId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.value.progress
+            }
+            val offline = isOffline()
+            _state.update { it.copy(progress = progress, offline = offline) }
+            if (offline) return@launch
             val bookmarks = runCatching { source.bookmarks(bookId).sortedBy { it.positionMs } }.getOrNull()
             val favourite = if (_state.value.canFavourite) runCatching { bookId in source.favourites() }.getOrNull() else null
             _state.update { it.copy(bookmarks = bookmarks ?: it.bookmarks, isFavourite = favourite ?: it.isFavourite) }
@@ -151,19 +195,77 @@ class BookViewModel(private val source: BookSource?, private val bookId: String,
         val source = source ?: return
         val wanted = !_state.value.isFavourite
         _state.update { it.copy(isFavourite = wanted) }
-        viewModelScope.launch {
-            try {
-                source.setFavourite(bookId, wanted)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _state.update { it.copy(isFavourite = !wanted, error = e.sourceMessage()) }
-            }
+        perform(onFailure = { _state.update { it.copy(isFavourite = !wanted) } }) { source.setFavourite(bookId, wanted) }
+    }
+
+    /** The listener's own book shared with the family or kept to themselves; put back if the server refuses. */
+    fun setShared(shared: Boolean) {
+        val sharing = source as? BookSharing ?: return
+        val before = book ?: return
+        _state.update { it.copy(book = Load.Loaded(before.copy(visibility = if (shared) Visibility.FAMILY else Visibility.PRIVATE))) }
+        perform(onFailure = { _state.update { it.copy(book = Load.Loaded(before)) } }) {
+            sharing.setShared(bookId, shared)
+            onShared()
         }
     }
 
+    fun setFinished(finished: Boolean) {
+        val book = book ?: return
+        perform {
+            markFinished(book, finished)
+            refresh()
+        }
+    }
+
+    fun resetProgress() {
+        val book = book ?: return
+        perform {
+            resetProgress(book)
+            _state.update { it.copy(progress = null) }
+            refresh()
+        }
+    }
+
+    fun renameBookmark(bookmark: Bookmark, label: String) {
+        val source = source ?: return
+        perform {
+            val renamed = source.renameBookmark(bookmark, label.trim().ifEmpty { null })
+            _state.update { s -> s.copy(bookmarks = s.bookmarks.map { if (it.id == bookmark.id) renamed else it }) }
+        }
+    }
+
+    fun deleteBookmark(bookmark: Bookmark) {
+        val source = source ?: return
+        val before = _state.value.bookmarks
+        _state.update { s -> s.copy(bookmarks = s.bookmarks.filterNot { it.id == bookmark.id }) }
+        perform(onFailure = { _state.update { it.copy(bookmarks = before) } }) { source.deleteBookmark(bookmark) }
+    }
+
     fun dismissError() = _state.update { it.copy(error = null) }
+
+    private fun perform(onFailure: () -> Unit = {}, work: suspend () -> Unit) {
+        viewModelScope.launch {
+            try {
+                work()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                onFailure()
+                _state.update { it.copy(error = e.sourceMessage()) }
+            }
+        }
+    }
 }
+
+/** The book page's menu and its bookmark rows. */
+data class BookMenuActions(
+    val onToggleFavourite: () -> Unit = {},
+    val onShare: (Boolean) -> Unit = {},
+    val onFinished: (Boolean) -> Unit = {},
+    val onResetProgress: () -> Unit = {},
+    val onRenameBookmark: (Bookmark, String) -> Unit = { _, _ -> },
+    val onDeleteBookmark: (Bookmark) -> Unit = {},
+)
 
 private enum class BookTab { CHAPTERS, FILES, BOOKMARKS }
 
@@ -177,37 +279,92 @@ fun BookContent(
     onPlay: (Book) -> Unit,
     onToggle: () -> Unit,
     onPlayFrom: (Book, Long) -> Unit,
-    onToggleFavourite: () -> Unit,
     onOpenSeries: (SeriesRef) -> Unit,
     onDismissError: () -> Unit,
+    menu: BookMenuActions = BookMenuActions(),
     contentPadding: PaddingValues = PaddingValues(),
 ) {
     val loaded = (state.book as? Load.Loaded)?.value
-    var menu by remember { mutableStateOf(false) }
+    var open by remember { mutableStateOf(false) }
+    var confirmingReset by rememberSaveable { mutableStateOf(false) }
     Page(
         title = loaded?.title.orEmpty(),
         onBack = onBack,
         actions = {
-            if (state.canFavourite) {
+            if (loaded != null) {
                 Box {
-                    IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, stringResource(SR.string.more)) }
-                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(if (state.isFavourite) R.string.remove_favorite else R.string.add_to_favorites)) },
-                            leadingIcon = { Icon(if (state.isFavourite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, null) },
-                            onClick = { menu = false; onToggleFavourite() },
-                        )
+                    IconButton(onClick = { open = true }, modifier = Modifier.testTag("book.more")) { Icon(Icons.Filled.MoreVert, stringResource(SR.string.more)) }
+                    DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                        BookMenuItems(loaded, state, menu, onResetAsked = { confirmingReset = true }, onClose = { open = false })
                     }
                 }
             }
         },
     ) {
         LoadStateView(state.book.forView(), onRetry = onRetry, modifier = Modifier.padding(top = 96.dp)) { book ->
-            BookBody(serverId, book, state, playback, onPlay, onToggle, onPlayFrom, onOpenSeries)
+            BookBody(serverId, book, state, playback, onPlay, onToggle, onPlayFrom, onOpenSeries, menu)
         }
         Spacer(Modifier.height(contentPadding.calculateBottomPadding()))
     }
+    if (confirmingReset) ResetProgressDialog(onReset = { confirmingReset = false; menu.onResetProgress() }, onDismiss = { confirmingReset = false })
     state.error?.let { ErrorAlert(it.text(), onDismissError) }
+}
+
+/**
+ * The book menu (book-ios `BookDetailView`): Add to Favorites / Remove Favorite where the server
+ * keeps them, Share with the Family / Keep to Myself for the owner, Mark as Finished / Not
+ * Finished, and Reset Progress once there is a position.
+ */
+@Composable
+fun BookMenuItems(book: Book, state: BookState, menu: BookMenuActions, onResetAsked: () -> Unit, onClose: () -> Unit) {
+    val palette = LocalPalette.current
+    if (state.canFavourite) {
+        DropdownMenuItem(
+            text = { Text(stringResource(if (state.isFavourite) R.string.remove_favorite else R.string.add_to_favorites)) },
+            leadingIcon = { Icon(if (state.isFavourite) Icons.Filled.HeartBroken else Icons.Filled.FavoriteBorder, null) },
+            onClick = { onClose(); menu.onToggleFavourite() },
+        )
+    }
+    if (state.canShare) {
+        val shared = book.visibility == Visibility.FAMILY
+        DropdownMenuItem(
+            text = { Text(stringResource(if (shared) R.string.keep_to_myself else R.string.share_with_family)) },
+            leadingIcon = { Icon(if (shared) Icons.Filled.PersonOutline else Icons.Filled.Group, null) },
+            onClick = { onClose(); menu.onShare(!shared) },
+            modifier = Modifier.testTag("book.share"),
+        )
+    }
+    if (state.progress?.finished == true) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.mark_not_finished)) },
+            leadingIcon = { Icon(Icons.AutoMirrored.Filled.Undo, null) },
+            onClick = { onClose(); menu.onFinished(false) },
+        )
+    } else {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.mark_finished)) },
+            leadingIcon = { Icon(Icons.Filled.CheckCircleOutline, null) },
+            onClick = { onClose(); menu.onFinished(true) },
+        )
+    }
+    if (state.progress != null) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.reset_progress), color = palette.error) },
+            leadingIcon = { Icon(Icons.Filled.Delete, null, tint = palette.error) },
+            onClick = { onClose(); onResetAsked() },
+        )
+    }
+}
+
+@Composable
+private fun ResetProgressDialog(onReset: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.reset_progress_question)) },
+        text = { Text(stringResource(R.string.reset_progress_message)) },
+        confirmButton = { TextButton(onClick = onReset) { Text(stringResource(R.string.reset_progress), color = LocalPalette.current.error) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(SR.string.cancel)) } },
+    )
 }
 
 @Composable
@@ -220,6 +377,7 @@ private fun BookBody(
     onToggle: () -> Unit,
     onPlayFrom: (Book, Long) -> Unit,
     onOpenSeries: (SeriesRef) -> Unit,
+    menu: BookMenuActions,
 ) {
     val palette = LocalPalette.current
     val isThis = playback.bookId == BookId.of(serverId, book.id).value && !playback.restored
@@ -296,11 +454,17 @@ private fun BookBody(
                     }
                 }
                 BookTab.BOOKMARKS -> {
-                    if (state.bookmarks.isEmpty()) {
-                        Muted(stringResource(R.string.no_bookmarks_book))
-                    } else {
-                        state.bookmarks.forEach { bookmark ->
-                            TimeRow(bookmark.label ?: stringResource(R.string.bookmark), clock(bookmark.positionMs), timeBelow = true) { onPlayFrom(book, bookmark.positionMs) }
+                    when {
+                        state.offline -> Muted(stringResource(R.string.bookmarks_offline))
+                        state.bookmarks.isEmpty() -> Muted(stringResource(R.string.no_bookmarks_book))
+                        else -> state.bookmarks.forEach { bookmark ->
+                            key(bookmark.id) {
+                                BookmarkRow(
+                                    bookmark,
+                                    BookmarkActions(onPick = { onPlayFrom(book, it.positionMs) }, onRename = menu.onRenameBookmark, onDelete = menu.onDeleteBookmark),
+                                    horizontalPadding = Tokens.Spacing.screenEdge,
+                                )
+                            }
                         }
                     }
                 }

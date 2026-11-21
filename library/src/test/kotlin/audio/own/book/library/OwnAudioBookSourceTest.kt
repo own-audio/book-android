@@ -135,6 +135,7 @@ class OwnAudioBookSourceTest {
 
             val saved = source.saveProgress("b1", 42_500, 6000, finished = false, at = Instant.parse("2026-10-15T11:00:00Z"))
             assertEquals(400_000L, saved.positionMs)
+            assertFalse("the server kept another device's newer position", saved.applied)
             assertEquals(400_000L, source.allProgress()["b1"]!!.positionMs)
 
             offline = true
@@ -169,6 +170,53 @@ class OwnAudioBookSourceTest {
             assertEquals(listOf("b1"), source.collections().first().books.map { it.id })
             assertTrue(Capability.COLLECTIONS in source.capabilities)
             assertFalse(Capability.SERVER_SEARCH in source.capabilities)
+        }
+    }
+
+    @Test
+    fun `positions from offline go in one push, each with when it was reached`() = runBlocking {
+        Stub { request ->
+            feed(request) ?: when (request.method to request.url.encodedPath) {
+                "POST" to "/api/v2/sync/push" -> {
+                    val changes = request.bodyJson()["changes"]!!.jsonArray.map { it.jsonObject }
+                    assertEquals(listOf("progress", "progress", "progress"), changes.map { it["op"]!!.jsonPrimitive.content })
+                    assertEquals(listOf(1_000L, 2_000L, 3_000L), changes.map { it["position_ms"]!!.jsonPrimitive.long })
+                    assertEquals("2026-11-20T10:00:00Z", changes.first()["at"]!!.jsonPrimitive.content)
+                    val ids = changes.map { it["client_id"]!!.jsonPrimitive.content }
+                    json("""[{"client_id":"${ids[2]}","status":"bad_item"},{"client_id":"${ids[0]}","status":"ok"},{"client_id":"${ids[1]}","status":"stale"}]""")
+                }
+                else -> problem("not_found", 404)
+            }
+        }.use { stub ->
+            val source = OwnAudioBookSource("server-1", ownAudioClient(stub), "u1", memoryCatalogue())
+            val at = Instant.parse("2026-11-20T10:00:00Z")
+            val reports = listOf("b1", "b2", "b3").mapIndexed { i, id ->
+                PlaybackReport(id, null, (i + 1) * 1_000L, 0, 6000, finished = false, at = at.plusSeconds(i.toLong()))
+            }
+            assertEquals(listOf(BatchResult.SENT, BatchResult.STALE, BatchResult.REFUSED), source.reportAll(reports))
+        }
+    }
+
+    @Test
+    fun `the owner shares a book with the family and keeps it again`() = runBlocking {
+        val sent = mutableListOf<String>()
+        Stub { request ->
+            feed(request) ?: when (request.method to request.url.encodedPath) {
+                "PUT" to "/api/v2/books/b1/visibility" -> {
+                    val value = request.bodyJson()["visibility"]!!.jsonPrimitive.content
+                    sent += value
+                    json("""{"visibility":"$value"}""")
+                }
+                else -> problem("not_found", 404)
+            }
+        }.use { stub ->
+            val source = OwnAudioBookSource("server-1", ownAudioClient(stub), "u1", memoryCatalogue())
+            val book = source.book("b1")
+            assertTrue(source.canShare(book))
+            assertFalse(source.canShare(book.copy(ownerId = "someone-else")))
+            source.setShared("b1", true)
+            source.setShared("b1", false)
+            assertEquals(listOf("family", "private"), sent)
         }
     }
 }

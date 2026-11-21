@@ -139,3 +139,35 @@ interface LiveLibraryUpdates : BookSource {
     /** One element per change, until the connection ends (normally or with an error). */
     fun libraryChanges(): Flow<Unit>
 }
+
+/**
+ * A source that takes many positions in one request: what piled up while offline goes in one
+ * call instead of one per book.
+ */
+interface ProgressBatch : BookSource {
+    /** One result per report, in the same order. Throws [SourceException] when the call fails as a whole. */
+    suspend fun reportAll(reports: List<PlaybackReport>): List<BatchResult>
+
+    /** At most this many in one call. */
+    val batchLimit: Int get() = 500
+}
+
+enum class BatchResult {
+    /** Stored (or stored before: a repeat counts once). */
+    SENT,
+
+    /** The server had a newer position; ask for [BookSource.progress] to take it. */
+    STALE,
+
+    /** Refused for good: dropped. */
+    REFUSED,
+}
+
+/** A source whose books have owners who can share them with their household. */
+interface BookSharing : BookSource {
+    /** Whether the signed-in listener owns [book], and so may share it or keep it to themselves. */
+    fun canShare(book: Book): Boolean
+
+    /** Shared with the household, or kept to the owner. */
+    suspend fun setShared(bookId: String, shared: Boolean)
+}

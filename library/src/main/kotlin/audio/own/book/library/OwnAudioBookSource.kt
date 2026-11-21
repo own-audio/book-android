@@ -8,6 +8,7 @@ import audio.own.book.library.catalogue.OwnAudioCatalogue
 import audio.own.book.library.catalogue.toBookmark
 import audio.own.book.library.catalogue.toProgress
 import audio.own.kit.ownaudio.ItemKind
+import audio.own.kit.ownaudio.OfflineChange
 import audio.own.kit.ownaudio.OwnAudioClient
 import audio.own.kit.ownaudio.OwnAudioException
 import audio.own.kit.ownaudio.OwnAudioImages
@@ -26,7 +27,9 @@ import audio.own.kit.ownaudio.me
 import audio.own.kit.ownaudio.pageAll
 import audio.own.kit.ownaudio.playbackInfo
 import audio.own.kit.ownaudio.progress
+import audio.own.kit.ownaudio.push
 import audio.own.kit.ownaudio.saveProgress
+import audio.own.kit.ownaudio.setBookVisibility
 import audio.own.kit.ownaudio.setFavourite
 import audio.own.kit.ownaudio.signOut
 import audio.own.kit.ownaudio.updateBookmark
@@ -54,7 +57,7 @@ class OwnAudioBookSource(
     val userId: String?,
     val catalogue: OwnAudioCatalogue,
     private val locale: Locale = Locale.getDefault(),
-) : ChangeFeedCatalogue, LiveLibraryUpdates {
+) : ChangeFeedCatalogue, LiveLibraryUpdates, ProgressBatch, BookSharing {
 
     override val capabilities: Set<Capability> = setOf(
         Capability.SERIES, Capability.COLLECTIONS, Capability.FAVOURITES, Capability.PER_DEVICE_POSITIONS,
@@ -211,7 +214,32 @@ class OwnAudioBookSource(
     override suspend fun saveProgress(bookId: String, positionMs: Long, durationMs: Long, finished: Boolean, at: Instant): ListeningProgress = translating {
         val answer = client.saveProgress(ItemKind.BOOK, bookId, positionMs, finished, at)
         catalogue.remember { gen -> progress(answer.progress, gen) }
-        answer.progress.toProgress()
+        answer.progress.toProgress().copy(applied = answer.applied)
+    }
+
+    /**
+     * Through `POST /sync/push`: each position with when it was reached, so a newer one from
+     * another device stays (`stale`). The feed brings what was stored to the catalogue.
+     */
+    override suspend fun reportAll(reports: List<PlaybackReport>): List<BatchResult> = translating {
+        val changes = reports.map {
+            OfflineChange.progress(ItemKind.BOOK, it.bookId, it.positionMs, it.finished, it.at, clientId = "${it.bookId}@${it.at.toEpochMilli()}")
+        }
+        val results = client.push(changes).associateBy { it.clientId }
+        changes.map { change ->
+            when (results[change.clientId]?.status) {
+                "ok", "duplicate" -> BatchResult.SENT
+                "stale" -> BatchResult.STALE
+                else -> BatchResult.REFUSED
+            }
+        }
+    }
+
+    override fun canShare(book: Book): Boolean = userId != null && book.ownerId == userId
+
+    override suspend fun setShared(bookId: String, shared: Boolean) = translating {
+        client.setBookVisibility(bookId, if (shared) Visibility.FAMILY.wire else Visibility.PRIVATE.wire)
+        Unit
     }
 
     override suspend fun clearProgress(bookId: String) = translating {

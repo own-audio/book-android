@@ -131,6 +131,11 @@ data class ListeningProgress(
     val updatedAt: Instant,
     /** Where other devices left off, where the server keeps that (own.audio). */
     val devices: List<DevicePosition> = emptyList(),
+    /**
+     * In the answer to a save: false when the server kept a newer position it already had
+     * (another device's) instead of the one sent; this progress is then that newer one.
+     */
+    val applied: Boolean = true,
 )
 
 data class DevicePosition(

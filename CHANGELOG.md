@@ -5,6 +5,7 @@ All notable changes to own.audio Books for Android. The format follows
 
 ## [Unreleased]
 
+- B7 and B8: positions are never lost (kept on disk, merged, sent at once on pause, seek or chapter and otherwise once a minute, batched when several wait), "Continue from ‹device›?" when another device got further, another device's newer position taken on own.audio; bookmarks (add, rename, delete; Audiobookshelf by time), favorites, Mark as Finished / Not Finished, Reset Progress, Share with the Family / Keep to Myself, and covers that load a fresh link once when theirs has expired.
 - `:core:downloads` and `:core:sync` (download workers and index, outboxes, background refresh, live updates), copied from music-android.
 - B3 and B4: the spoken player on Media3 and the book screens — Home with shelves, Library (series, authors, narrators, collections; sort, filter, grid or list), the book page with chapters, files and bookmarks, Search, the mini player and the player (chapter slider, speed, sleep timer, chapters); plays in the background with skip and chapter buttons on the notification; positions written to disk before they are sent. Players now wait through long signal gaps instead of failing after ten minutes.
 - B5 and the app shell, ported from music-android: welcome, own.audio account, Try the Demo Library, Add Server for own.audio and Audiobookshelf (book libraries only, a library picker, the server's own icon), Settings, the server page, Family, Devices, Listening and Logs. A privacy policy (PRIVACY.md).

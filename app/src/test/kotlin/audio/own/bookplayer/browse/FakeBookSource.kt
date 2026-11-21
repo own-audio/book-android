@@ -67,7 +67,7 @@ object Samples {
     )
 }
 
-class FakeBookSource(
+open class FakeBookSource(
     override val capabilities: Set<Capability> = setOf(Capability.SERIES, Capability.COLLECTIONS, Capability.FAVOURITES),
     val books: List<Book> = Samples.books,
 ) : BookSource {
@@ -76,6 +76,10 @@ class FakeBookSource(
     var favourite = mutableSetOf("b2")
     var failFavourite = false
     val searches = mutableListOf<String>()
+    var failChanges: SourceException? = null
+    val progress = Samples.progress.toMutableMap()
+    val bookmarks = mutableListOf(Bookmark("m1", "b1", 754_000, "The letter", Instant.EPOCH), Bookmark("m2", "b2", 754_000, "The letter", Instant.EPOCH))
+    val bookmarkCalls = mutableListOf<String>()
     val pages = mutableListOf<String?>()
 
     private fun check() = fail?.let { throw it }
@@ -124,14 +128,37 @@ class FakeBookSource(
         return SearchResult(books = books.filter { it.title.contains(text, ignoreCase = true) })
     }
 
-    override suspend fun progress(bookId: String) = Samples.progress[bookId]
-    override suspend fun allProgress() = Samples.progress
-    override suspend fun saveProgress(bookId: String, positionMs: Long, durationMs: Long, finished: Boolean, at: Instant) = ListeningProgress(positionMs, finished, at)
-    override suspend fun clearProgress(bookId: String) = Unit
-    override suspend fun bookmarks(bookId: String) = listOf(Bookmark("m1", bookId, 754_000, "The letter", Instant.EPOCH))
-    override suspend fun addBookmark(bookId: String, positionMs: Long, label: String?) = throw SourceException.Unsupported
-    override suspend fun renameBookmark(bookmark: Bookmark, label: String?) = throw SourceException.Unsupported
-    override suspend fun deleteBookmark(bookmark: Bookmark) = Unit
+    override suspend fun progress(bookId: String) = progress[bookId]
+    override suspend fun allProgress() = progress.toMap()
+    override suspend fun saveProgress(bookId: String, positionMs: Long, durationMs: Long, finished: Boolean, at: Instant): ListeningProgress {
+        failChanges?.let { throw it }
+        return ListeningProgress(positionMs, finished, at).also { progress[bookId] = it }
+    }
+
+    override suspend fun clearProgress(bookId: String) {
+        failChanges?.let { throw it }
+        progress.remove(bookId)
+    }
+
+    override suspend fun bookmarks(bookId: String) = bookmarks.filter { it.bookId == bookId }
+
+    override suspend fun addBookmark(bookId: String, positionMs: Long, label: String?): Bookmark {
+        bookmarkCalls += "add $positionMs $label"
+        failChanges?.let { throw it }
+        return Bookmark("m${bookmarks.size + 1}", bookId, positionMs, label, Instant.EPOCH).also { bookmarks += it }
+    }
+
+    override suspend fun renameBookmark(bookmark: Bookmark, label: String?): Bookmark {
+        bookmarkCalls += "rename ${bookmark.id} $label"
+        failChanges?.let { throw it }
+        return bookmark.copy(label = label).also { renamed -> bookmarks.replaceAll { if (it.id == bookmark.id) renamed else it } }
+    }
+
+    override suspend fun deleteBookmark(bookmark: Bookmark) {
+        bookmarkCalls += "delete ${bookmark.id}"
+        failChanges?.let { throw it }
+        bookmarks.removeAll { it.id == bookmark.id }
+    }
     override suspend fun favourites(): Set<String> = favourite.toSet()
     override suspend fun setFavourite(bookId: String, on: Boolean) {
         if (failFavourite) throw SourceException.Network
@@ -142,4 +169,17 @@ class FakeBookSource(
     override suspend fun report(report: PlaybackReport): ListeningProgress? = null
     override suspend fun partUrl(book: Book, fileId: String, startMs: Long?, maxBitrateKbps: Int?) = throw SourceException.Unsupported
     override suspend fun signOut() = Unit
+}
+
+/** An own.audio-like source whose signed-in listener owns [Samples.pride]. */
+class SharingFakeSource : FakeBookSource(capabilities = setOf(Capability.FAVOURITES, Capability.FAMILY_SHARING), books = Samples.books.map { if (it.id == "b1") it.copy(ownerId = "me") else it }),
+    audio.own.book.library.BookSharing {
+    val shared = mutableListOf<Pair<String, Boolean>>()
+
+    override fun canShare(book: Book) = book.ownerId == "me"
+
+    override suspend fun setShared(bookId: String, shared: Boolean) {
+        failChanges?.let { throw it }
+        this.shared += bookId to shared
+    }
 }

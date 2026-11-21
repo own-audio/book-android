@@ -10,11 +10,17 @@ import audio.own.book.library.AudiobookshelfBookSource
 import audio.own.book.library.Book
 import audio.own.book.library.BookId
 import audio.own.book.library.BookSource
+import audio.own.book.library.ChangeFeedCatalogue
+import audio.own.book.library.ListeningProgress
+import audio.own.book.library.PlaybackReport
+import audio.own.book.library.ProgressBatch
 import audio.own.book.library.ResumeChoice
+import audio.own.book.library.SourceException
 import audio.own.bookplayer.R
 import audio.own.bookplayer.app.AppLog
 import audio.own.bookplayer.library.BookSources
 import audio.own.bookplayer.library.bookCoverRequest
+import audio.own.bookplayer.servers.ServersModel
 import audio.own.core.servers.MobileData
 import audio.own.core.servers.NetworkState
 import audio.own.core.servers.OfflineSwitch
@@ -32,17 +38,22 @@ import audio.own.player.spoken.SpokenPlayer
 import audio.own.player.spoken.SpokenPosition
 import com.google.common.util.concurrent.ListenableFuture
 import java.io.File
+import java.time.Instant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -57,6 +68,7 @@ import kotlinx.serialization.Serializable
 class PlaybackModel(
     private val context: Context,
     private val sources: BookSources,
+    private val servers: ServersModel?,
     private val settings: PlaybackSettings,
     private val network: StateFlow<NetworkState>,
     private val offline: OfflineSwitch,
@@ -81,12 +93,39 @@ class PlaybackModel(
     private val lastBookFile = JsonFile(File(filesDir, "last-book.json"), LastBook.serializer())
     private var lastBook: LastBook? = lastBookFile.read()
 
+    private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     val outbox = ProgressOutbox(
         file = File(filesDir, "pending-progress.json"),
-        send = { serverId, report -> (sources.source(serverId) ?: throw ProgressOutbox.NoSource()).report(report) },
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+        send = { entry -> (sources.source(entry.serverId) ?: throw ProgressOutbox.NoSource()).report(entry.report()) },
         log = log,
-    )
+        scope = io,
+        isOffline = { offline.isOffline },
+        sendBatch = { serverId, entries ->
+            when (val source = sources.source(serverId)) {
+                null -> throw ProgressOutbox.NoSource()
+                is ProgressBatch -> source.reportAll(entries.map { it.report() })
+                else -> null
+            }
+        },
+    ).also { box ->
+        box.onAnswer = { entry, answer -> if (answer != null && !answer.applied) takeServerPosition(entry.compositeId, answer) }
+        box.onStale = { entry -> sources.source(entry.serverId)?.progress(entry.bookId)?.let { takeServerPosition(entry.compositeId, it) } }
+        box.onSignInRefused = { serverId -> servers?.markRefused(serverId) }
+    }
+
+    /** Positions changed outside this screen: another device's, a newer one the server kept, a book marked finished. */
+    private val _progressChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val progressChanged: SharedFlow<Unit> = _progressChanged.asSharedFlow()
+
+    /** "Continue from ‹device›?": another device went on with the book since this phone last saved. */
+    data class ResumeQuestion(val serverId: String, val book: Book, val localMs: Long, val otherMs: Long, val otherDevice: String?)
+
+    private val _resumeQuestion = MutableStateFlow<ResumeQuestion?>(null)
+    val resumeQuestion: StateFlow<ResumeQuestion?> = _resumeQuestion.asStateFlow()
+
+    private var inForeground = false
+    private var progressRefresh: Job? = null
 
     private val _state = MutableStateFlow(restoredState())
     override val state: StateFlow<PlaybackUi> = _state.asStateFlow()
@@ -112,17 +151,43 @@ class PlaybackModel(
     private var starting = false
     private var startJob: Job? = null
 
+    init {
+        // A network that came back gets a moment to settle before the queue goes out.
+        main.launch {
+            network.map { it.connected }.distinctUntilChanged().collectLatest { connected ->
+                if (!connected) return@collectLatest
+                delay(NETWORK_SETTLE_MS)
+                outbox.flush()
+            }
+        }
+    }
+
     // region PlaybackControls
 
-    override fun play(serverId: String, book: Book, atMs: Long?) {
+    override fun play(serverId: String, book: Book, atMs: Long?) = play(serverId, book, atMs, mayAsk = true)
+
+    /** [mayAsk] false where nobody can answer the question (Android Auto): the other device's place wins. */
+    fun play(serverId: String, book: Book, atMs: Long?, mayAsk: Boolean) {
         val composite = BookId.of(serverId, book.id).value
         val spoken = engine.spoken
         if (spoken.bookId == composite && atMs == null) {
             spoken.play()
             return
         }
+        _resumeQuestion.value = null
         startJob?.cancel()
-        startJob = main.launch { start(serverId, book, atMs) }
+        startJob = main.launch { start(serverId, book, atMs, mayAsk) }
+    }
+
+    /** The listener's answer: the other device's place, or this one's. */
+    fun answerResume(useOther: Boolean) {
+        val question = _resumeQuestion.value ?: return
+        _resumeQuestion.value = null
+        play(question.serverId, question.book, if (useOther) question.otherMs else question.localMs)
+    }
+
+    fun dismissResume() {
+        _resumeQuestion.value = null
     }
 
     override fun toggle() {
@@ -141,7 +206,7 @@ class PlaybackModel(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 return@launch fail(e)
             }
-            start(last.serverId, book, atMs = null)
+            start(last.serverId, book, atMs = null, mayAsk = true)
         }
     }
 
@@ -211,8 +276,87 @@ class PlaybackModel(
     /** Sends what is queued (launch, foreground, a network that came back). */
     fun flush() = outbox.flushSoon()
 
-    private suspend fun start(serverId: String, book: Book, atMs: Long?) {
+    /**
+     * The app in front or not: in front, positions made elsewhere are read now and every three
+     * minutes while a book plays (nobody sees them in the background).
+     */
+    fun setForeground(foreground: Boolean) {
+        inForeground = foreground
+        progressRefresh?.cancel()
+        if (!foreground) return
+        flush()
+        progressRefresh = main.launch {
+            refreshProgress()
+            while (true) {
+                delay(PROGRESS_REFRESH_MS)
+                if (_state.value.isPlaying) refreshProgress()
+            }
+        }
+    }
+
+    /**
+     * Positions made on other devices, from the active server: own.audio's come with its change
+     * feed; Audiobookshelf's screens read them again.
+     */
+    suspend fun refreshProgress() {
+        if (offline.isOffline) return
+        val source = sources.active.value?.source ?: return
+        if (source is ChangeFeedCatalogue) sources.sync(source)
+        _progressChanged.tryEmit(Unit)
+    }
+
+    /**
+     * Marks [book] finished or not: the engine lets go of it without reporting where it was,
+     * nothing queued for it is sent afterwards, then the server is told. Throws what the server
+     * answers.
+     */
+    suspend fun markFinished(serverId: String, book: Book, finished: Boolean) {
+        val source = sources.source(serverId) ?: throw SourceException.NotFound
+        forgetPlayback(serverId, book.id)
+        val position = if (finished) book.durationMs else 0
+        source.saveProgress(book.id, position, book.durationMs, finished, Instant.now())
+        _progressChanged.tryEmit(Unit)
+    }
+
+    /** Forgets the position on every device; the engine lets go of the book first, as for [markFinished]. */
+    suspend fun resetProgress(serverId: String, book: Book) {
+        val source = sources.source(serverId) ?: throw SourceException.NotFound
+        forgetPlayback(serverId, book.id)
+        source.clearProgress(book.id)
+        _progressChanged.tryEmit(Unit)
+    }
+
+    private fun forgetPlayback(serverId: String, bookId: String) {
+        val composite = BookId.of(serverId, bookId).value
+        val spoken = engineOrNull?.spoken
+        if (spoken?.bookId == composite) {
+            startJob?.cancel()
+            spoken.stop(reporting = false)
+        }
+        if (lastBook?.let { it.serverId == serverId && it.bookId == bookId } == true || _state.value.bookId == composite) {
+            lastBook = null
+            lastBookFile.delete()
+            this.serverId = null
+            _state.value = PlaybackUi()
+        }
+        sessions.remove(composite)
+        outbox.drop(serverId, bookId)
+    }
+
+    /** A newer position the server kept: this phone takes it, unless the book is playing here. */
+    private fun takeServerPosition(composite: String, progress: ListeningProgress) {
+        if (engineOrNull?.spoken?.bookId == composite) return
+        outbox.setLocal(composite, progress)
+        lastBook?.takeIf { BookId.of(it.serverId, it.bookId).value == composite }?.let {
+            lastBook = it.copy(positionMs = progress.positionMs).also(lastBookFile::write)
+            if (_state.value.restored) _state.value = restoredState()
+        }
+        _progressChanged.tryEmit(Unit)
+    }
+
+    private suspend fun start(serverId: String, book: Book, atMs: Long?, mayAsk: Boolean) {
         val composite = BookId.of(serverId, book.id).value
+        val before = _state.value
         starting = true
         _state.update {
             it.copy(
@@ -227,7 +371,16 @@ class PlaybackModel(
             val full = if (book.files.isNullOrEmpty()) source.book(book.id) else book
             val files = full.files.orEmpty()
             if (files.isEmpty()) throw IllegalStateException("${full.id} has no files")
-            val start = atMs ?: resumePosition(source, full, composite)
+            val start = atMs ?: when (val choice = resumeChoice(source, full, composite)) {
+                is ResumeChoice.Start -> choice.positionMs
+                is ResumeChoice.Ask -> if (mayAsk) {
+                    _resumeQuestion.value = ResumeQuestion(serverId, full, choice.localMs, choice.otherMs, choice.otherDevice)
+                    _state.value = before
+                    return
+                } else {
+                    choice.otherMs
+                }
+            }
             val prefs = settings.prefs.value
             val net = network.value
             val saver = net.metered && prefs.mobileData == MobileData.SAVER
@@ -269,15 +422,14 @@ class PlaybackModel(
         contentType = file.contentType,
     )
 
-    /** book-ios's resume choice: this phone's position against the server's; B7 adds the question. */
-    private suspend fun resumePosition(source: BookSource, book: Book, composite: String): Long {
+    /**
+     * book-ios's resume choice: this phone's position against the server's, which carries every
+     * device's (own.audio). Offline, this phone's.
+     */
+    private suspend fun resumeChoice(source: BookSource, book: Book, composite: String): ResumeChoice {
         val local = outbox.local(composite)
         val server = if (offline.isOffline) null else runCatching { source.progress(book.id) }.getOrNull()
-        return when (val choice = ResumeChoice.decide(local, server)) {
-            is ResumeChoice.Start -> choice.positionMs
-            // Until the "Continue from ‹device›?" dialog (B7), the other device's newer place wins.
-            is ResumeChoice.Ask -> choice.otherMs
-        }
+        return ResumeChoice.decide(local, server)
     }
 
     private fun fail(error: Exception?) {
@@ -305,12 +457,7 @@ class PlaybackModel(
                 engine.loadControl.lookAheadMs = minutes * 60_000L
             }
         }
-        main.launch {
-            network.collect { net ->
-                spoken.networkChanged(net.connected)
-                if (net.connected) outbox.flushSoon()
-            }
-        }
+        main.launch { network.collect { net -> spoken.networkChanged(net.connected) } }
         main.launch {
             combine(spoken.state, settings.prefs) { s, prefs -> s to prefs }.collect { (s, prefs) -> publish(s, prefs) }
         }
@@ -325,15 +472,16 @@ class PlaybackModel(
     private fun onPosition(position: SpokenPosition) {
         val id = BookId(position.bookId)
         val server = id.serverId
-        val closes = position.reason == ReportReason.STOP || position.reason == ReportReason.FINISHED
-        outbox.record(
+        val closes = position.reason == ReportReason.STOP || position.reason == ReportReason.FINISHED || position.reason == ReportReason.TEARDOWN
+        val due = outbox.record(
             ProgressOutbox.Entry(
                 serverId = server, bookId = id.bookId, sessionId = sessions[position.bookId], positionMs = position.positionMs,
                 durationMs = position.durationMs, listenedMs = position.listenedMs, finished = position.finished,
                 atMs = position.atMs, closes = closes,
             ),
-            immediate = position.reason != ReportReason.PERIODIC,
+            position.reason,
         )
+        if (due) outbox.flushSoon()
         lastBook?.takeIf { it.bookId == id.bookId && it.serverId == server }?.let {
             lastBook = it.copy(positionMs = position.positionMs, speed = engineOrNull?.spoken?.state?.value?.speed ?: it.speed).also(lastBookFile::write)
         }
@@ -385,6 +533,11 @@ class PlaybackModel(
         )
     }
 
+    private companion object {
+        const val PROGRESS_REFRESH_MS = 180_000L
+        const val NETWORK_SETTLE_MS = 2_000L
+    }
+
     private fun restoredState(): PlaybackUi {
         val last = lastBook ?: return PlaybackUi()
         return PlaybackUi(
@@ -402,3 +555,9 @@ class PlaybackModel(
         )
     }
 }
+
+/** What the server is told about a queued position. */
+fun ProgressOutbox.Entry.report() = PlaybackReport(
+    bookId = bookId, sessionId = sessionId, positionMs = positionMs, listenedMs = listenedMs, durationMs = durationMs,
+    finished = finished, at = Instant.ofEpochMilli(atMs), closes = closes,
+)

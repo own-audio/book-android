@@ -157,4 +157,26 @@
     <string name="streaming_footer_keep_ahead">Během streamování se v tomto zařízení uchovávají další minuty knihy, i přes mobilní data, takže tunel ani výpadek signálu nebude slyšet; se spořičem dat 5 minut. Úsporné streamy se neuchovávají.</string>
     <string name="banner_offline_mode">Režim offline · jen stažené knihy</string>
     <string name="banner_no_network">Bez sítě · jen stažené knihy</string>
+    <!-- Positions, bookmarks and the book menu -->
+    <string name="continue_from_question">Pokračovat z %1$s?</string>
+    <string name="continue_from_at">Pokračovat z %1$s (%2$s)</string>
+    <string name="keep_this_position">Zůstat na pozici tohoto zařízení (%1$s)</string>
+    <string name="resume_message">%1$s se dostalo na %2$s; toto zařízení bylo na %3$s.</string>
+    <string name="another_device">jiné zařízení</string>
+    <string name="another_device_start">Jiné zařízení</string>
+    <string name="there">tamtud</string>
+    <string name="add_bookmark_at">Přidat záložku v %1$s</string>
+    <string name="new_bookmark">Nová záložka</string>
+    <string name="rename_bookmark">Přejmenovat záložku</string>
+    <string name="label_optional">Popisek (nepovinný)</string>
+    <string name="label">Popisek</string>
+    <string name="delete">Smazat</string>
+    <string name="bookmarks_offline">Záložky jsou uložené na serveru. Offline nejsou k dispozici.</string>
+    <string name="mark_finished">Označit jako dokončené</string>
+    <string name="mark_not_finished">Označit jako nedokončené</string>
+    <string name="reset_progress">Vynulovat průběh</string>
+    <string name="reset_progress_question">Vynulovat průběh?</string>
+    <string name="reset_progress_message">Pozice se zapomene na všech zařízeních.</string>
+    <string name="share_with_family">Sdílet s rodinou</string>
+    <string name="keep_to_myself">Nastavit jako soukromé</string>
 </resources>

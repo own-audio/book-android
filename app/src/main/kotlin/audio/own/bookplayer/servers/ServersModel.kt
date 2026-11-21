@@ -708,6 +708,12 @@ class ServersModel(
         }
     }
 
+    /** A server refused the saved sign-in while sending something: its page offers to sign in again. */
+    fun markRefused(id: String) {
+        if (_state.value.server(id) == null) return
+        _state.update { it.copy(checks = it.checks + (id to ConnectionCheck(ConnectionCheck.Status.REJECTED, clock.instant()))) }
+    }
+
     /** Work that must finish even when the screen that asked for it closes. */
     fun scopeLaunch(block: suspend () -> Unit) {
         scope.launch { runCatching { block() }.onFailure { log.error("servers", "background work failed: ${it.message}") } }

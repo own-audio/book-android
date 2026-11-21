@@ -24,8 +24,8 @@ are described there once for all three Android apps. The foundation is built in
 | B4 | Screens: Home, Library, book, people, series, collections, search, player | ◐ built 2026-11-21; a 12-file demo book and an Audiobookshelf book played on the emulator (speed, chapters and skips from the notification, position saved before sending and sent after a kill). Open: guide pages, cover refetch with a fresh link |
 | B5 | Welcome, sign-in, server page (Books specifics) | ◐ built 2026-11-21, tried on the demo and an Audiobookshelf server; "Library on This Device" comes with the catalogue sync (B6) |
 | B6 | Downloads, offline, set downloads, eviction | ☐ |
-| B7 | Positions: pending progress, resume choice, "Continue from another device?" | ☐ |
-| B8 | Bookmarks, favourites, finished/reset, sharing with the family | ☐ |
+| B7 | Positions: pending progress, resume choice, "Continue from another device?" | ☑ 2026-11-21 (the dialog seen with a position written from a second device; batches through `/sync/push`) |
+| B8 | Bookmarks, favourites, finished/reset, sharing with the family | ◐ built 2026-11-21; bookmarks and reset tried on Audiobookshelf, finished/not finished on the demo; favourites unit-tested only (the demo account is read-only) |
 | B9 | Settings | ☐ |
 | B10 | Import from this device (own.audio uploads) | ☐ |
 | B11 | Narrate an ebook (hosted own.audio) | ☐ |
@@ -33,7 +33,7 @@ are described there once for all three Android apps. The foundation is built in
 | B13 | Localization, accessibility, tablets, misuse tests | ☐ |
 | B14 | Release | ☐ |
 
-**Where we stopped:** B4 built 2026-11-21 — books play from own.audio and Audiobookshelf. Next: B6 downloads (reusing music-android's `:core:downloads`), B7 positions (the "Continue from another device?" dialog, `applied:false`, `/sync/push`), B8.
+**Where we stopped:** B7 and B8 built 2026-11-21. Next: B6 downloads (`:core:downloads` and `:core:sync` are already copied from music-android), the rest of B9 settings, then B10 import and B11 narration. Known: Audiobookshelf descriptions show HTML entities (`&amp;`).
 
 ## Rules for whoever executes this plan
 
@@ -476,5 +476,5 @@ the screenshots.
 ## Open questions for the maintainer
 
 1. Show collections for own.audio on Android (v2 has them) and port that back to book-ios? (Recommended.)
-2. Use `POST /sync/push` for offline positions on Android while iOS PUTs one at a time? (Recommended; same
-   server result, fewer requests.)
+2. ~~Use `POST /sync/push` for offline positions?~~ Done in B7: two or more queued positions for one server go
+   through `/sync/push`; a single one still goes by PUT to get `applied`.

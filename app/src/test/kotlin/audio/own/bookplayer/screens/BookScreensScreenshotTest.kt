@@ -111,7 +111,7 @@ class BookScreensScreenshotTest {
         serverId = "s1",
         state = BookState(Load.Loaded(Samples.pride), Samples.progress["b1"], listOf(Bookmark("m1", "b1", 754_000, "The letter", Instant.EPOCH)), isFavourite = true, canFavourite = true),
         playback = PlaybackUi(),
-        onBack = {}, onRetry = {}, onPlay = {}, onToggle = {}, onPlayFrom = { _, _ -> }, onToggleFavourite = {}, onOpenSeries = {}, onDismissError = {},
+        onBack = {}, onRetry = {}, onPlay = {}, onToggle = {}, onPlayFrom = { _, _ -> }, onOpenSeries = {}, onDismissError = {},
     )
 
     @Composable
@@ -150,6 +150,54 @@ class BookScreensScreenshotTest {
     @Test @Config(qualifiers = "+cs") fun sleepSheetCzech() = shoot("sheet_sleep_cs", false) { SleepSheetContent(SleepUi.EndOfChapter, true, PlayerActions(), {}) }
     @Test @Config(fontScale = 2f) fun sleepSheetLargestText() = shoot("sheet_sleep_font200", false) { SleepSheetContent(SleepUi.Off, true, PlayerActions(), {}) }
 
+    private val bookmarksState = audio.own.bookplayer.player.BookmarksState(
+        listOf(
+            Bookmark("m1", "b1", 754_000, "The letter", Instant.EPOCH),
+            Bookmark("m2", "b1", 2 * 3_600_000L + 5 * 60_000L, null, Instant.EPOCH),
+            Bookmark("m3", "b1", 4 * 3_600_000L, "Netherfield ball, the long conversation in the garden", Instant.EPOCH),
+        ),
+    )
+
+    @Composable
+    private fun Bookmarks(state: audio.own.bookplayer.player.BookmarksState = bookmarksState) =
+        audio.own.bookplayer.player.BookmarksSheetContent(state, playing.positionMs, audio.own.bookplayer.player.BookmarkSheetActions(), {})
+
+    @Test fun bookmarksSheetLight() = shoot("sheet_bookmarks_light", false) { Bookmarks() }
+    @Test fun bookmarksSheetDark() = shoot("sheet_bookmarks_dark", true) { Bookmarks() }
+    @Test @Config(qualifiers = "+cs") fun bookmarksSheetCzech() = shoot("sheet_bookmarks_cs", false) { Bookmarks() }
+    @Test @Config(fontScale = 2f) fun bookmarksSheetLargestText() = shoot("sheet_bookmarks_font200", false) { Bookmarks() }
+    @Test fun bookmarksSheetOffline() = shoot("sheet_bookmarks_offline", false) { Bookmarks(audio.own.bookplayer.player.BookmarksState(emptyList(), offline = true)) }
+
+    @Composable
+    private fun Menu(finished: Boolean) = Column {
+        audio.own.bookplayer.book.BookMenuItems(
+            Samples.pride,
+            BookState(Load.Loaded(Samples.pride), Samples.progress["b1"]!!.copy(finished = finished), isFavourite = !finished, canFavourite = true, canShare = true),
+            audio.own.bookplayer.book.BookMenuActions(), onResetAsked = {}, onClose = {},
+        )
+    }
+
+    @Test fun bookMenuLight() = shoot("book_menu_light", false) { Menu(finished = false) }
+    @Test fun bookMenuDark() = shoot("book_menu_dark", true) { Menu(finished = true) }
+    @Test @Config(qualifiers = "+cs") fun bookMenuCzech() = shoot("book_menu_cs", false) { Menu(finished = false) }
+
+    private fun shootScreen(name: String, dark: Boolean, content: @Composable () -> Unit) {
+        compose.setContent {
+            OwnAudioTheme(accent = AccentChoice.APP, darkTheme = dark, reduceMotion = true) {
+                Surface(color = MaterialTheme.colorScheme.background) { content() }
+            }
+        }
+        // A dialog is a window of its own: the whole screen is captured.
+        @OptIn(com.github.takahirom.roborazzi.ExperimentalRoborazziApi::class)
+        com.github.takahirom.roborazzi.captureScreenRoboImage("src/test/screenshots/$name.png")
+    }
+
+    private val question = audio.own.bookplayer.playback.PlaybackModel.ResumeQuestion("s1", Samples.pride, 754_000, 3_723_000, "Pixel Tablet")
+
+    @Test fun resumeDialogLight() = shootScreen("dialog_resume_light", false) { audio.own.bookplayer.player.ResumeDialog(question, {}, {}, {}) }
+    @Test fun resumeDialogDark() = shootScreen("dialog_resume_dark", true) { audio.own.bookplayer.player.ResumeDialog(question, {}, {}, {}) }
+    @Test @Config(qualifiers = "+cs") fun resumeDialogCzech() = shootScreen("dialog_resume_cs", false) { audio.own.bookplayer.player.ResumeDialog(question, {}, {}, {}) }
+    @Test @Config(fontScale = 2f) fun resumeDialogLargestText() = shootScreen("dialog_resume_font200", false) { audio.own.bookplayer.player.ResumeDialog(question, {}, {}, {}) }
     @Test fun chaptersSheetLight() = shoot("sheet_chapters_light", false) { ChaptersSheetContent(playing, {}, {}) }
     @Test fun chaptersSheetDark() = shoot("sheet_chapters_dark", true) { ChaptersSheetContent(playing, {}, {}) }
     @Test @Config(qualifiers = "+cs") fun chaptersSheetCzech() = shoot("sheet_chapters_cs", false) { ChaptersSheetContent(playing, {}, {}) }

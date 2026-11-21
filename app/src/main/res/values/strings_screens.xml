@@ -154,4 +154,26 @@
     <string name="streaming_footer_keep_ahead">While a book streams, its next minutes are kept on this device, on mobile data too, so a tunnel or a gap in the signal goes unheard; with Data Saver on, 5 minutes. Saver streams are not kept.</string>
     <string name="banner_offline_mode">Offline Mode · downloaded books only</string>
     <string name="banner_no_network">No network · downloaded books only</string>
+    <!-- Positions, bookmarks and the book menu -->
+    <string name="continue_from_question">Continue from %1$s?</string>
+    <string name="continue_from_at">Continue from %1$s (%2$s)</string>
+    <string name="keep_this_position">Keep this device\'s position (%1$s)</string>
+    <string name="resume_message">%1$s got to %2$s; this device was at %3$s.</string>
+    <string name="another_device">another device</string>
+    <string name="another_device_start">Another device</string>
+    <string name="there">there</string>
+    <string name="add_bookmark_at">Add Bookmark at %1$s</string>
+    <string name="new_bookmark">New Bookmark</string>
+    <string name="rename_bookmark">Rename Bookmark</string>
+    <string name="label_optional">Label (optional)</string>
+    <string name="label">Label</string>
+    <string name="delete">Delete</string>
+    <string name="bookmarks_offline">Bookmarks are kept on the server. Not available offline.</string>
+    <string name="mark_finished">Mark as Finished</string>
+    <string name="mark_not_finished">Mark as Not Finished</string>
+    <string name="reset_progress">Reset Progress</string>
+    <string name="reset_progress_question">Reset Progress?</string>
+    <string name="reset_progress_message">The position is forgotten on every device.</string>
+    <string name="share_with_family">Share with the Family</string>
+    <string name="keep_to_myself">Keep to Myself</string>
 </resources>

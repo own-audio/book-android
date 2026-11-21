@@ -78,11 +78,12 @@ fun AppRoot(container: AppContainer) {
     val accent by container.preferences.accent.collectAsState(initial = AccentChoice.APP)
     OwnAudioTheme(accent = accent) {
         val icons by container.serverIcons.icons.collectAsStateWithLifecycle()
-        CompositionLocalProvider(LocalServerIcons provides icons) {
+        CompositionLocalProvider(LocalServerIcons provides icons, audio.own.bookplayer.library.LocalCoverRefresher provides container.covers) {
             Surface(color = MaterialTheme.colorScheme.background) {
                 val nav = rememberNavController()
                 AppNavHost(container, nav)
                 TwoFactorOverlay(container)
+                ResumeQuestionOverlay(container)
             }
         }
     }
@@ -340,9 +341,13 @@ private fun TwoFactorOverlay(container: AppContainer) {
 @Composable
 private fun PlayerRoute(container: AppContainer, onClose: () -> Unit) {
     val state by container.playback.state.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
-    var bookmarks by remember { mutableStateOf<List<audio.own.book.library.Bookmark>?>(null) }
     val playback = container.playback
+    val serverId = state.serverId
+    val bookId = state.bookId?.let { audio.own.book.library.BookId(it).bookId }
+    val bookmarksVm = viewModel(key = "bookmarks|${state.bookId}") {
+        audio.own.bookplayer.player.BookmarksViewModel(serverId?.let { container.sources.source(it) }, bookId) { container.offline.isOffline }
+    }
+    val bookmarks by bookmarksVm.state.collectAsStateWithLifecycle()
     PlayerContent(
         state = state,
         actions = PlayerActions(
@@ -365,18 +370,26 @@ private fun PlayerRoute(container: AppContainer, onClose: () -> Unit) {
             },
         ),
         bookmarks = bookmarks,
-        onLoadBookmarks = {
-            bookmarks = null
-            val serverId = state.serverId
-            val bookId = state.bookId
-            scope.launch {
-                val source = serverId?.let { container.sources.source(it) }
-                bookmarks = if (source == null || bookId == null) {
-                    emptyList()
-                } else {
-                    runCatching { source.bookmarks(audio.own.book.library.BookId(bookId).bookId).sortedBy { it.positionMs } }.getOrDefault(emptyList())
-                }
-            }
-        },
+        bookmarkActions = audio.own.bookplayer.player.BookmarkSheetActions(
+            onAdd = bookmarksVm::add,
+            onRename = bookmarksVm::rename,
+            onDelete = bookmarksVm::delete,
+            onDismissError = bookmarksVm::dismissError,
+        ),
+        onLoadBookmarks = bookmarksVm::load,
     )
+}
+
+/** "Continue from ‹device›?", over whatever screen started the book. */
+@Composable
+private fun ResumeQuestionOverlay(container: AppContainer) {
+    val question by container.playbackModel.resumeQuestion.collectAsStateWithLifecycle()
+    question?.let {
+        audio.own.bookplayer.player.ResumeDialog(
+            it,
+            onOther = { container.playbackModel.answerResume(useOther = true) },
+            onLocal = { container.playbackModel.answerResume(useOther = false) },
+            onDismiss = container.playbackModel::dismissResume,
+        )
+    }
 }

@@ -203,6 +203,7 @@ private fun TabHost(
                     val state by vm.state.collectAsStateWithLifecycle()
                     ReloadOnPause(playback.isPlaying) { vm.reload(quietly = true) }
                     LaunchedEffect(offline) { vm.reload(quietly = true) }
+                    LaunchedEffect(vm) { container.playbackModel.progressChanged.collect { vm.reload(quietly = true) } }
                     Scaffold(topBar = { HomeTopBar(servers.servers, servers.activeId, offlineMode, onSelectServer, onOfflineMode, onSettings) }) { inner ->
                         HomeContent(
                             serverId = serverId,
@@ -240,9 +241,18 @@ private fun TabHost(
         }
         composable(TabRoutes.BOOK) { entry ->
             val id = arg(entry, "id")
-            val vm = viewModel { BookViewModel(source, id, go.known(id), isOffline = { container.offline.isOffline }) }
+            val vm = viewModel {
+                BookViewModel(
+                    source, id, go.known(id),
+                    isOffline = { container.offline.isOffline },
+                    markFinished = { book, finished -> container.playbackModel.markFinished(serverId, book, finished) },
+                    resetProgress = { book -> container.playbackModel.resetProgress(serverId, book) },
+                    onShared = { (source as? audio.own.book.library.ChangeFeedCatalogue)?.let { container.scope.launch { container.sources.sync(it) } } },
+                )
+            }
             val state by vm.state.collectAsStateWithLifecycle()
             ReloadOnPause(playback.isPlaying) { vm.refresh() }
+            LaunchedEffect(vm) { container.playbackModel.progressChanged.collect { vm.refresh() } }
             BookContent(
                 serverId = serverId,
                 state = state,
@@ -259,9 +269,16 @@ private fun TabHost(
                         container.playback.play(serverId, book, at)
                     }
                 },
-                onToggleFavourite = vm::toggleFavourite,
                 onOpenSeries = { go.series(it.id, it.name) },
                 onDismissError = vm::dismissError,
+                menu = audio.own.bookplayer.book.BookMenuActions(
+                    onToggleFavourite = vm::toggleFavourite,
+                    onShare = vm::setShared,
+                    onFinished = vm::setFinished,
+                    onResetProgress = vm::resetProgress,
+                    onRenameBookmark = vm::renameBookmark,
+                    onDeleteBookmark = vm::deleteBookmark,
+                ),
             )
         }
         composable(TabRoutes.BOOKS) { entry ->

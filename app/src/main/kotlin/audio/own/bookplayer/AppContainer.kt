@@ -94,18 +94,21 @@ class AppContainer(context: Context) {
         acceptLanguage = { appLocale().toLanguageTag() },
         log = log,
         scope = scope,
-        onRemoved = { serverIcons.remove(it); sources.forget(it) },
+        onRemoved = { serverIcons.remove(it); sources.forget(it); playbackModel.outbox.forgetServer(it) },
     )
 
     val sources: BookSources = BookSources(app, servers, log, scope, versionName)
 
     val playbackSettings: PlaybackSettings = DataStorePlaybackSettings(app, scope)
 
+    val covers = audio.own.bookplayer.library.CoverRefresher({ sources.source(it) }, scope)
+
     private val linkResolver = BookLinkResolver(sources)
 
     val playbackModel: PlaybackModel = PlaybackModel(
         context = app,
         sources = sources,
+        servers = servers,
         settings = playbackSettings,
         network = network.state,
         offline = offline,

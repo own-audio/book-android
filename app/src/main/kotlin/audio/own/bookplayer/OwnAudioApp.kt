@@ -1,6 +1,7 @@
 package audio.own.bookplayer
 
 import android.app.Application
+import audio.own.bookplayer.playback.ProgressFlushWorker
 import audio.own.bookplayer.servers.ConnectionState
 import coil3.ImageLoader
 import coil3.PlatformContext
@@ -32,8 +33,9 @@ class OwnAudioApp : Application(), SingletonImageLoader.Factory {
                 Triple(network, offlineMode, prefs.mobileData)
             }.collect { (network, offlineMode, mobileData) -> container.offline.update(offlineMode, network, mobileData) }
         }
-        // Positions saved while the app was away go out now.
+        // Positions saved while the app was away go out now, and every hour or so in the background.
         container.playbackModel.flush()
+        ProgressFlushWorker.schedule(this)
     }
 
     /** Covers through the app's client (no Authorization header), cached by record rather than by URL. */
