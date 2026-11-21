@@ -19,7 +19,7 @@ are described there once for all three Android apps. The foundation is built in
 |---|---|---|
 | B0 | Copy the foundation from music-android, make it own.book | ◐ skeleton 2026-11-21 |
 | B1 | `:kit:audiobookshelf` | ☑ 2026-11-21 |
-| B2 | Book library layer, own.audio and Audiobookshelf sources, catalogue database | ☐ |
+| B2 | Book library layer, own.audio and Audiobookshelf sources, catalogue database | ◐ built 2026-11-21, live tests pass on both servers; the debug list comes with the screens (B4) |
 | B3 | Spoken engine (`:player:spoken`) | ◐ logic done 2026-11-21 (timeline, chapters from MP4/M4B, ID3, FLAC/Ogg, smart rewind, sleep end modes, speed); Media3 player next |
 | B4 | Screens: Home, Library, book, people, series, collections, search, player | ☐ |
 | B5 | Welcome, sign-in, server page (Books specifics) | ☐ |

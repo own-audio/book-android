@@ -5,6 +5,7 @@ All notable changes to own.audio Books for Android. The format follows
 
 ## [Unreleased]
 
+- B2: the book library — one model over own.audio and Audiobookshelf, own.audio's catalogue on the phone (one Room database per server, fed by the sync snapshot and change feed; collections too), Audiobookshelf through its pages and shelves with one play session per book, the resume choice and the download eviction rules.
 - The spoken engine's logic (B3, part): one timeline across a book's files, chapter navigation, chapters read from the files themselves (MP4/M4B chapter tracks and Nero `chpl`, MP3 ID3 `CHAP`/`CTOC`, FLAC and Ogg comments) within 6 seconds, smart rewind, the end-of-chapter and end-of-book sleep modes, speed steps and their text.
 - `:player:core` (sleep timer, resume store, storage route, payload check), copied from music-android.
 - `:core:servers`, copied from music-android (F3).
