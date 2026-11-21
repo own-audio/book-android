@@ -5,6 +5,7 @@ All notable changes to own.audio Books for Android. The format follows
 
 ## [Unreleased]
 
+- `:core:servers`, copied from music-android (F3).
 - `:kit:ownaudio`, the own.audio /api/v2 client, copied from music-android (F2).
 - F1's look from music-android with the brown accent, the book words and the book icon.
 - `:kit:audiobookshelf` (B1): the Audiobookshelf client with rotating tokens, play sessions, progress, bookmarks and podcast libraries.
