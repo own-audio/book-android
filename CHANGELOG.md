@@ -5,6 +5,7 @@ All notable changes to own.audio Books for Android. The format follows
 
 ## [Unreleased]
 
+- `:player:core` (sleep timer, resume store, storage route, payload check), copied from music-android.
 - `:core:servers`, copied from music-android (F3).
 - `:kit:ownaudio`, the own.audio /api/v2 client, copied from music-android (F2).
 - F1's look from music-android with the brown accent, the book words and the book icon.
