@@ -17,7 +17,7 @@ are described there once for all three Android apps. The foundation is built in
 
 | Phase | What | State |
 |---|---|---|
-| B0 | Copy the foundation from music-android, make it own.book | ☐ |
+| B0 | Copy the foundation from music-android, make it own.book | ◐ skeleton 2026-11-21 |
 | B1 | `:kit:audiobookshelf` | ☐ |
 | B2 | Book library layer, own.audio and Audiobookshelf sources, catalogue database | ☐ |
 | B3 | Spoken engine (`:player:spoken`) | ☐ |
@@ -33,7 +33,7 @@ are described there once for all three Android apps. The foundation is built in
 | B13 | Localization, accessibility, tablets, misuse tests | ☐ |
 | B14 | Release | ☐ |
 
-**Where we stopped:** nothing built yet; this plan and the foundation document exist (2026-11-21).
+**Where we stopped:** B0 started 2026-11-21: the build skeleton from music-android's F0 is copied (empty tabs, both flavours, CI, drift check). The three apps are built in parallel: each shared module is copied here the day it lands in music-android, and the rest of B0 completes with F7's shared screens.
 
 ## Rules for whoever executes this plan
 
