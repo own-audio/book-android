@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.coil.network.okhttp)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.work.runtime)
+    implementation(libs.androidx.glance.appwidget)
 
     // Sign in with Google: only the play build has Google Play services.
     "playImplementation"(libs.androidx.credentials)

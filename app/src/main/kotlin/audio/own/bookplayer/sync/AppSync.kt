@@ -24,8 +24,8 @@ import kotlinx.coroutines.launch
 /**
  * How the phone hears from its servers (docs/android-foundation.md §9.2): live updates
  * (`GET /events`) from the own.audio server shown while a screen is open, and the hourly
- * background refresh, which sends the positions still queued and brings every own.audio
- * catalogue up to date.
+ * background refresh, which sends the positions still queued, brings every own.audio
+ * catalogue up to date and redraws the Continue Listening widget when its books changed.
  */
 class AppSync(
     private val servers: ServersModel,
@@ -35,6 +35,8 @@ class AppSync(
     private val network: StateFlow<NetworkState>,
     private val log: AppLog,
     private val scope: CoroutineScope,
+    /** The widget reads the shelf again with the periodic refresh. */
+    private val refreshWidget: suspend () -> Unit = {},
 ) {
     val liveUpdates = LiveUpdates(
         scope = scope,
@@ -60,15 +62,17 @@ class AppSync(
         }
     }
 
-    /** The periodic job: positions out, catalogues in. True when nothing needs another go. */
+    /** The periodic job: positions out, catalogues in, the widget brought up to date. True when nothing needs another go. */
     private suspend fun backgroundRefresh(): Boolean {
         servers.state.first { it.loaded }
-        if (isOffline()) return true
-        playback().outbox.flush()
-        for (record in servers.state.value.servers) {
-            val source = sources.source(record.id) as? ChangeFeedCatalogue ?: continue
-            sources.sync(source)
+        if (!isOffline()) {
+            playback().outbox.flush()
+            for (record in servers.state.value.servers) {
+                val source = sources.source(record.id) as? ChangeFeedCatalogue ?: continue
+                sources.sync(source)
+            }
         }
+        refreshWidget()
         return true
     }
 }

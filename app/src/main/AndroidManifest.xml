@@ -25,13 +25,29 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- The widget's rows and other apps: ownbook://play/<escaped composite id>. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ownbook" android:host="play" />
+            </intent-filter>
+            <!-- "Play ‹book› on own.book" from the assistant. -->
+            <intent-filter>
+                <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
-        <!-- The media session: notification, lock screen, headsets, and Android Auto later. -->
+        <!-- The media session: notification, lock screen, headsets, the assistant and Android Auto. -->
         <service
             android:name=".playback.BookPlaybackService"
             android:exported="true"
@@ -42,6 +58,29 @@
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
+        <!-- The home-screen widget "Continue Listening". -->
+        <receiver
+            android:name=".widget.ContinueListeningWidgetReceiver"
+            android:exported="true"
+            android:label="@string/shelf_continue_listening">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/continue_listening_widget" />
+        </receiver>
+        <!-- Android Auto's row pictures; it serves only covers the browse tree named. -->
+        <provider
+            android:name=".playback.CarArtworkProvider"
+            android:authorities="${applicationId}.artwork"
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
+        <!-- Android Auto finds the media service through this. -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+        <!-- Play on a headset's button after the app was ended resumes the last book. -->
         <receiver
             android:name="androidx.media3.session.MediaButtonReceiver"
             android:exported="true">

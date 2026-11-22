@@ -33,6 +33,18 @@ import audio.own.book.library.OfflineBookSource
 import audio.own.bookplayer.downloads.BookDownloads
 import audio.own.bookplayer.playback.AccountPlaybackSettings
 import audio.own.bookplayer.sync.AppSync
+import audio.own.book.library.Book
+import audio.own.book.library.BookId
+import audio.own.book.library.ListeningProgress
+import audio.own.bookplayer.playback.AutoContent
+import audio.own.bookplayer.playback.CarArtwork
+import audio.own.bookplayer.playback.CoverJpegs
+import audio.own.bookplayer.playback.PlayRequests
+import audio.own.bookplayer.widget.ContinueListeningWidget
+import audio.own.bookplayer.widget.WidgetSnapshot
+import audio.own.bookplayer.widget.WidgetStore
+import audio.own.bookplayer.widget.WidgetUpdater
+import kotlinx.coroutines.withTimeoutOrNull
 import audio.own.player.core.ProxyMemory
 import androidx.work.DelegatingWorkerFactory
 import androidx.work.WorkManager
@@ -58,7 +70,7 @@ import okhttp3.OkHttpClient
 
 /**
  * Hand-wired dependencies. Android Auto, the assistant and the widget can bind to the media
- * service without any screen having started, so the playback dependencies will be created here,
+ * service without any screen having started, so the playback dependencies are created here,
  * eagerly, rather than from the UI.
  */
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -176,7 +188,69 @@ class AppContainer(context: Context) {
         downloads = downloads,
     )
 
-    val sync = AppSync(servers, sources, { playbackModel }, { offline.isOffline }, network.state, log, scope)
+    /** Small cover JPEGs for the car's rows and the widget. */
+    val coverJpegs = CoverJpegs(app)
+
+    val carArtwork = CarArtwork("${app.packageName}.artwork", File(app.cacheDir, "car-artwork"))
+
+    /** Where the listener is in each book of a server: this phone's positions over the server's. */
+    suspend fun progressOf(serverId: String): Map<String, ListeningProgress> {
+        val source = sources.source(serverId)?.let(::screenSource) ?: return emptyMap()
+        val server = try {
+            source.allProgress()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            emptyMap()
+        }
+        val local = downloads.state.value.downloadedBooks(serverId).map { it.id } + server.keys
+        return local.distinct().mapNotNull { id ->
+            val mine = playbackModel.outbox.local(BookId.of(serverId, id).value)
+            val theirs = server[id]
+            val newer = listOfNotNull(mine, theirs).maxByOrNull { it.updatedAt } ?: return@mapNotNull null
+            id to newer
+        }.toMap()
+    }
+
+    /** The widget, Android Auto, the assistant and `ownbook://` links. */
+    val playRequests = PlayRequests(
+        model = playbackModel,
+        library = object : PlayRequests.Library {
+            override suspend fun ready() {
+                servers.state.first { it.loaded }
+                withTimeoutOrNull(5_000) { downloads.state.first { it.loaded } }
+            }
+
+            override val activeServerId: String? get() = servers.state.value.active?.id
+
+            override fun source(serverId: String): BookSource? = sources.source(serverId)?.let(::screenSource)
+
+            override fun downloaded(serverId: String): List<Book> = downloads.state.value.downloadedBooks(serverId)
+
+            override fun downloadedRecord(compositeId: String): Book? = downloads.downloadedBook(compositeId) ?: downloads.record(compositeId)
+        },
+    )
+
+    val widget = WidgetUpdater(
+        context = app,
+        store = WidgetStore(ContinueListeningWidget.folder(app)),
+        playback = playbackModel.state,
+        playingCoverUrl = { playbackModel.coverUrl },
+        shelf = {
+            servers.state.first { it.loaded }
+            val active = sources.active.value
+            if (active == null) {
+                emptyList()
+            } else {
+                AutoContent.continueListening(screenSource(active.source).shelves()).take(WidgetSnapshot.MAX_ENTRIES)
+                    .map { WidgetSnapshot.ShelfBook(active.serverId, it) }
+            }
+        },
+        progress = ::progressOf,
+        log = log,
+        jpeg = { pick -> pick.coverUrl?.let { coverJpegs.jpeg(pick.serverId, pick.bookId, it, WIDGET_COVER_PX) } },
+    )
+
+    val sync = AppSync(servers, sources, { playbackModel }, { offline.isOffline }, network.state, log, scope, refreshWidget = { widget.refresh() })
 
     val accountSettings = AccountPlaybackSettings(servers, playbackSettings, { offline.isOffline }, log, scope)
 
@@ -233,6 +307,10 @@ class AppContainer(context: Context) {
 
     /** The header of a shared log: which app, which system. */
     val logHeader: String get() = "own.book $versionName ($versionCode), Android ${Build.VERSION.RELEASE}, ${Build.MANUFACTURER} ${Build.MODEL}"
+
+    private companion object {
+        const val WIDGET_COVER_PX = 160
+    }
 
     private fun appLocale(): Locale = AppCompatDelegate.getApplicationLocales()[0] ?: Locale.getDefault()
 }

@@ -5,6 +5,7 @@ All notable changes to own.audio Books for Android. The format follows
 
 ## [Unreleased]
 
+- B12: Android Auto (Continue Listening, Downloads, Library, Series, Authors, the chapters while a book plays, a speed button, search), the Continue Listening widget, ownbook://play links, the assistant ("continue listening", "continue my book", "play ‹book›") and a Continue Listening shortcut; Play on a headset or the system's controls after the app was ended resumes the last book.
 - The spoken player takes a part's real length from the file when the stated one is missing or wrong, accepts chapters that arrive after loading, and switches to a downloaded copy at the next pause or seek without losing the place.
 - Narrate an Ebook sends the same Idempotency-Key for every attempt at the same request: a retry after a lost answer never starts a second paid job.
 - B10 and B11: Import a Book from audio files or a folder on this device (tags fill the title, author and cover; the order can be changed; the upload survives the app being killed and a retry never makes the book twice), and Narrate an Ebook on own.audio's hosted service (language, voice, files, the price first). Importing and Narrating rows in the Library.

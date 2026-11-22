@@ -10,6 +10,9 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 
 class OwnAudioApp : Application(), SingletonImageLoader.Factory, Configuration.Provider {
@@ -47,6 +50,11 @@ class OwnAudioApp : Application(), SingletonImageLoader.Factory, Configuration.P
         // Imports WorkManager lost (cleared data, a failed enqueue) start again; the rest it runs itself.
         runCatching { container.imports.resume() }
         container.sync.start()
+        // The widget follows the server shown, positions made elsewhere and a library that grew.
+        container.widget.start(
+            container.scope,
+            merge(container.sources.active.drop(1).map { }, container.playbackModel.progressChanged, container.libraryGrew.map { }),
+        )
         container.accountSettings.start()
         runCatching {
             val work = WorkManager.getInstance(this)

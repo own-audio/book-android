@@ -54,9 +54,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 
 /**
@@ -211,22 +213,66 @@ class PlaybackModel(
         }
         val last = lastBook ?: return
         startJob?.cancel()
-        startJob = main.launch {
-            val composite = BookId.of(last.serverId, last.bookId).value
-            val kept = downloads?.record(composite)
-            val book = if (kept != null && (offline.isOffline || downloads?.downloadedBook(composite) != null)) {
-                kept
-            } else {
-                val source = sources.source(last.serverId) ?: return@launch fail(null)
-                try {
-                    source.book(last.bookId)
-                } catch (e: Exception) {
-                    if (e is kotlinx.coroutines.CancellationException) throw e
-                    kept ?: return@launch fail(e)
-                }
+        startJob = main.launch { startLast(last, mayAsk = true) }
+    }
+
+    private suspend fun startLast(last: LastBook, mayAsk: Boolean) {
+        val composite = BookId.of(last.serverId, last.bookId).value
+        val kept = downloads?.record(composite)
+        val book = if (kept != null && (offline.isOffline || downloads?.downloadedBook(composite) != null)) {
+            kept
+        } else {
+            val source = sources.source(last.serverId) ?: return fail(null)
+            try {
+                source.book(last.bookId)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                kept ?: return fail(e)
             }
-            start(last.serverId, book, atMs = null, mayAsk = true)
         }
+        start(last.serverId, book, atMs = null, mayAsk = mayAsk)
+    }
+
+    /** The cover link of the book in the player, or of the last one. */
+    val coverUrl: String? get() = engineOrNull?.spoken?.currentBook?.artworkUri ?: lastBook?.coverUrl
+
+    /** The book listened to last, as remembered on disk: what a headset's Play after a kill resumes. */
+    val lastPlayed: LastBook? get() = lastBook
+
+    /**
+     * For callers nobody can answer the resume question for (the car, the assistant, a headset
+     * after a kill): plays [book] from the newer position and waits until it is loaded. False
+     * when it didn't start.
+     */
+    suspend fun playNow(serverId: String, book: Book): Boolean {
+        play(serverId, book, atMs = null, mayAsk = false)
+        startJob?.join()
+        return engine.spoken.bookId == BookId.of(serverId, book.id).value
+    }
+
+    /**
+     * Goes on with the book in the player, else the last one (also after the app was ended), and
+     * waits until it plays; the newer position wins. False when there is none or it didn't start.
+     */
+    suspend fun resumeLast(): Boolean {
+        val spoken = engine.spoken
+        if (spoken.bookId != null) {
+            spoken.play()
+            return true
+        }
+        servers?.state?.first { it.loaded }
+        downloads?.let { d -> withTimeoutOrNull(LOAD_WAIT_MS) { d.state.first { it.loaded } } }
+        val last = lastBook ?: return false
+        startJob?.cancel()
+        startJob = main.launch { startLast(last, mayAsk = false) }
+        startJob?.join()
+        return spoken.bookId == BookId.of(last.serverId, last.bookId).value
+    }
+
+    /** The ids of the parts in the player, as the session's player carries them. */
+    fun loadedItemIds(): List<String> {
+        val player = engineOrNull?.spoken?.player ?: return emptyList()
+        return (0 until player.mediaItemCount).map { player.getMediaItemAt(it).mediaId }
     }
 
     override fun pause() {
@@ -617,6 +663,7 @@ class PlaybackModel(
     private companion object {
         const val PROGRESS_REFRESH_MS = 180_000L
         const val NETWORK_SETTLE_MS = 2_000L
+        const val LOAD_WAIT_MS = 5_000L
     }
 
     private fun restoredState(): PlaybackUi {

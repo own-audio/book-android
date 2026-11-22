@@ -29,11 +29,11 @@ are described there once for all three Android apps. The foundation is built in
 | B9 | Settings | ☑ 2026-11-22 (account skip intervals and speed saved to /me/settings) |
 | B10 | Import from this device (own.audio uploads) | ◐ built 2026-11-22; on the demo up to the upload (refused, read-only); a real upload waits for a writable account |
 | B11 | Narrate an ebook (hosted own.audio) | ◐ built 2026-11-22, tested against a fake server only (starting a job is idempotent) |
-| B12 | Android Auto, widget, deep links, voice, background refresh | ☐ |
+| B12 | Android Auto, widget, deep links, voice, background refresh | ◐ built 2026-11-22: browse tree, car search, speed button and the widget (placed, tapped, played) checked on the emulator; headset Play after the process ended resumes; Auto on a real head unit still to see |
 | B13 | Localization, accessibility, tablets, misuse tests | ☐ |
 | B14 | Release | ☐ |
 
-**Where we stopped:** B10 and B11 built 2026-11-22. Next: B12 (Android Auto, widget, deep links, voice), B13 polish, the guide; a writable own.audio account for the live checks.
+**Where we stopped:** B12 built 2026-11-22. Next: use `:player:spoken`'s new real lengths, setChapters and useLocalCopy in PlaybackModel (drop the hand-made local-copy swap), B13 polish, the guide, B14 release.
 
 ## Rules for whoever executes this plan
 
