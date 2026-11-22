@@ -106,6 +106,9 @@ class AppContainer(context: Context) {
 
     val preferences: AppPreferences = DataStorePreferences(app)
     val network = NetworkMonitor(app).also { it.start() }
+
+    /** Whether a screen of the app is started; [OwnAudioApp] keeps it from the process lifecycle. */
+    val foreground = MutableStateFlow(false)
     val offline = OfflineSwitch()
     val answers = DiskAnswerCache(File(app.cacheDir, "server-responses"))
     val tokenSessions = TokenSessions()
@@ -138,6 +141,7 @@ class AppContainer(context: Context) {
         acceptLanguage = { appLocale().toLanguageTag() },
         log = log,
         scope = scope,
+        foreground = foreground,
         onRemoved = { id ->
             serverIcons.remove(id)
             sources.forget(id)

@@ -38,6 +38,7 @@ class ServerDetailViewModel(
     val serversState: StateFlow<ServersState> = servers.state
 
     init {
+        servers.aboutToUse(serverId)
         viewModelScope.launch {
             val record = servers.state.value.server(serverId) ?: return@launch
             val host = (servers.state.value.connections[serverId] as? ConnectionState.Connected)?.url ?: record.host
