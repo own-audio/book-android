@@ -5,6 +5,7 @@ All notable changes to own.audio Books for Android. The format follows
 
 ## [Unreleased]
 
+- The spoken player takes a part's real length from the file when the stated one is missing or wrong, accepts chapters that arrive after loading, and switches to a downloaded copy at the next pause or seek without losing the place.
 - Narrate an Ebook sends the same Idempotency-Key for every attempt at the same request: a retry after a lost answer never starts a second paid job.
 - B10 and B11: Import a Book from audio files or a folder on this device (tags fill the title, author and cover; the order can be changed; the upload survives the app being killed and a retry never makes the book twice), and Narrate an Ebook on own.audio's hosted service (language, voice, files, the price first). Importing and Narrating rows in the Library.
 - B6 and B9: downloads (a book, or a whole series, author, narrator, collection or filtered list), the Downloads tab, Keep at Most by whole books (finished ones first, never the playing one), a download replacing the stream at the next pause, Offline Mode with the offline banner, the library from downloads (or the whole own.audio library) when offline, live updates while the app is open, an hourly refresh, and the Downloads and offline settings; skip intervals and speed for new books follow the own.audio account. Audiobookshelf descriptions show plain text instead of HTML entities.
