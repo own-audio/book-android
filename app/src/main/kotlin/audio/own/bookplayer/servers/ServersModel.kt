@@ -62,6 +62,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 
@@ -243,7 +244,15 @@ class ServersModel(
      * answering `mfa_required` leaves a [PendingTwoFactor] and throws [TwoFactorNeeded].
      */
     suspend fun signIn(address: String, username: String, password: String, name: String, replacing: String? = null) {
-        when (val found = detector.detect(address)) {
+        val found = detector.detect(address)
+        // Refused before signing in, so the server gets no session and asks for no code.
+        if (replacing == null) {
+            when (found) {
+                is Detected.Audiobookshelf -> refuseIfAdded(ServerKinds.AUDIOBOOKSHELF, found.host, null, username)
+                is Detected.OwnAudio -> refuseIfAdded(ServerKinds.OWN_AUDIO, found.host, found.discovery.id, username)
+            }
+        }
+        when (found) {
             is Detected.Audiobookshelf -> signInToAudiobookshelf(found.host, username, password, name, replacing)
             is Detected.OwnAudio -> {
                 val tokens = try {
@@ -427,10 +436,22 @@ class ServersModel(
             userId = me.id,
             addedAtEpochMs = clock.millis(),
         ).learning(learned)
-        finish(record, replacing)
+        finish(record, replacing) { probe.signOut() }
     }
 
-    private suspend fun finish(record: ServerRecord, replacing: String?) {
+    /**
+     * Saves a newly signed-in server, or puts the sign-in on the saved one it replaces. A new one
+     * the app already has is refused, and [abandon] ends the session the sign-in started.
+     */
+    private suspend fun finish(record: ServerRecord, replacing: String?, abandon: suspend () -> Unit = {}) {
+        if (replacing == null) {
+            try {
+                refuseIfAdded(record.kind, record.host, record.serverIdentity, record.auth.userName)
+            } catch (e: UserFacingException) {
+                scope.launch { runCatching { abandon() } }
+                throw e
+            }
+        }
         if (replacing != null) {
             replaceSignIn(replacing, record)
         } else {
@@ -443,6 +464,25 @@ class ServersModel(
             scope.launch { chooseAddress(record.id) }
         }
         _signedIn.tryEmit(replacing ?: record.id)
+    }
+
+    /**
+     * Refuses a second copy of an account the app has: the same kind, the same server (its
+     * identity, or its address for a kind without one) and the same user. Another user on that
+     * server is allowed; signing in again goes through the saved server's page.
+     */
+    private fun refuseIfAdded(kind: String, host: String, identity: String?, userName: String) {
+        val user = userName.trim()
+        val added = _state.value.servers.any { saved ->
+            saved.kind == kind &&
+                saved.auth.userName.trim().equals(user, ignoreCase = true) &&
+                if (saved.serverIdentity != null && identity != null) {
+                    saved.serverIdentity == identity
+                } else {
+                    (listOf(saved.host) + saved.addresses.map { it.url }).any { addressKey(it) == addressKey(host) }
+                }
+        }
+        if (added) throw UserFacingException(audio.own.bookplayer.R.string.error_already_added)
     }
 
     /** Signs in to a saved server again; it keeps its id, so downloads and addresses stay. */
@@ -748,3 +788,14 @@ internal fun audio.own.kit.audiobookshelf.Tokens.toStored() =
     StoredTokens(accessToken, refreshToken, expiresAtMillis.takeIf { it != audio.own.kit.audiobookshelf.Tokens.NEVER })
 
 internal fun StoredTokens.toAbsTokens() = audio.own.kit.audiobookshelf.Tokens(access, refresh, expiresAtEpochMs ?: audio.own.kit.audiobookshelf.Tokens.NEVER)
+
+/**
+ * What names a server in an address: its host, a port other than the scheme's own, and the path.
+ * The scheme, the host's case and a trailing slash don't count.
+ */
+internal fun addressKey(address: String): String {
+    val typed = address.trim()
+    val url = (if ("://" in typed) typed else "http://$typed").toHttpUrlOrNull() ?: return typed.trimEnd('/').lowercase()
+    val port = if (url.port == HttpUrl.defaultPort(url.scheme)) "" else ":${url.port}"
+    return url.host + port + url.encodedPath.trimEnd('/')
+}

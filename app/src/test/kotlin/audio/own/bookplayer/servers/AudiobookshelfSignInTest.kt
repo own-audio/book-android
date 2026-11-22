@@ -89,6 +89,15 @@ class AudiobookshelfSignInTest {
     }
 
     @Test
+    fun anAccountAddedAgainIsRefused() = runBlocking {
+        model.signIn(fake.url, "kim", fake.password, "")
+        // The address typed differently: upper case, a trailing slash.
+        expectMessage(AppR.string.error_already_added) { model.signIn(fake.url.uppercase() + "/", " Kim ", fake.password, "Again") }
+        assertEquals(1, harness.store.loadAll().size)
+        assertEquals("refused before signing in", 1, fake.requests.count { it.url.encodedPath == "/login" })
+    }
+
+    @Test
     fun aWrongPasswordSavesNothing() {
         expectMessage(R.string.error_rejected) { model.signIn(fake.url, "kim", "wrong", "") }
         runBlocking { assertTrue(harness.store.loadAll().isEmpty()) }

@@ -5,6 +5,7 @@ All notable changes to own.audio Books for Android. The format follows
 
 ## [Unreleased]
 
+- Adding an account the app already has (the same server and the same user) is refused with "This server is already added. To sign in again, open it in Settings."; another user on the same server can still be added.
 - B13: TalkBack names and values throughout, headings, 48 dp targets, layouts at 200 % text, the player side by side on tablets in landscape, phones upright; removing a server stops its book; a finished download replaces the stream through the spoken player's own swap; misuse tests.
 - The user guide (`guide/`, for GitHub Pages): every screen, with screenshots.
 - A book or episode loaded to be shown paused no longer starts playing by itself after the previous one played (the shared spoken player).

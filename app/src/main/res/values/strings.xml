@@ -21,6 +21,7 @@
     <string name="about_footer">own.audio Books is free and open source (MPL-2.0). It talks only to the servers you add.</string>
     <string name="members_footer">What you add to the library is yours. Share a book from its menu; everyone in the family can then listen to it, each from their own position.</string>
     <string name="error_no_book_library">This account reaches no book library on that server.</string>
+    <string name="error_already_added">This server is already added. To sign in again, open it in Settings.</string>
     <string name="library">Library</string>
     <string name="library_footer">The book library this app shows from the server. With several, each is also in the switch on Home.</string>
     <string name="no_book_library_listed">No book library could be listed.</string>

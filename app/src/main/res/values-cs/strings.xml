@@ -21,6 +21,7 @@
     <string name="about_footer">own.audio Books je zdarma a open source (MPL-2.0). Mluví jen se servery, které přidáte.</string>
     <string name="members_footer">Co do knihovny přidáte, je vaše. Knihu sdílejte z její nabídky; pak si ji může poslechnout každý v rodině, každý od své vlastní pozice.</string>
     <string name="error_no_book_library">Tento účet nemá na tomto serveru přístup k žádné knihovně knih.</string>
+    <string name="error_already_added">Tento server už je přidaný. Znovu se přihlásíte v Nastavení na jeho stránce.</string>
     <string name="library">Knihovna</string>
     <string name="library_footer">Knihovna knih, kterou aplikace ze serveru ukazuje. Je-li jich víc, má každá i vlastní položku v přepínači na kartě Domů.</string>
     <string name="no_book_library_listed">Nepodařilo se vypsat žádnou knihovnu knih.</string>
