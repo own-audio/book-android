@@ -33,6 +33,27 @@ import audio.own.kit.ownaudio.setBookVisibility
 import audio.own.kit.ownaudio.setFavourite
 import audio.own.kit.ownaudio.signOut
 import audio.own.kit.ownaudio.updateBookmark
+import audio.own.kit.ownaudio.NarrationJob
+import audio.own.kit.ownaudio.NarrationOutput
+import audio.own.kit.ownaudio.NarrationQuote
+import audio.own.kit.ownaudio.NewBook
+import audio.own.kit.ownaudio.UploadKinds
+import audio.own.kit.ownaudio.UploadLink
+import audio.own.kit.ownaudio.createBook
+import audio.own.kit.ownaudio.createNarration
+import audio.own.kit.ownaudio.createUpload
+import audio.own.kit.ownaudio.narration
+import audio.own.kit.ownaudio.narrationEstimate
+import audio.own.kit.ownaudio.narrationLanguages
+import audio.own.kit.ownaudio.narrationQuote
+import audio.own.kit.ownaudio.narrationVoices
+import audio.own.kit.ownaudio.putUpload
+import java.io.File
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.onEach
+import okhttp3.RequestBody
 import java.time.Instant
 import java.util.Locale
 import kotlinx.coroutines.async
@@ -57,7 +78,7 @@ class OwnAudioBookSource(
     val userId: String?,
     val catalogue: OwnAudioCatalogue,
     private val locale: Locale = Locale.getDefault(),
-) : ChangeFeedCatalogue, LiveLibraryUpdates, ProgressBatch, BookSharing {
+) : ChangeFeedCatalogue, LiveLibraryUpdates, ProgressBatch, BookSharing, BookUploader, BookNarrator {
 
     override val capabilities: Set<Capability> = setOf(
         Capability.SERIES, Capability.COLLECTIONS, Capability.FAVOURITES, Capability.PER_DEVICE_POSITIONS,
@@ -359,9 +380,63 @@ class OwnAudioBookSource(
     override suspend fun resetCatalogue() = catalogue.reset()
 
     override fun libraryChanges(): Flow<Unit> = client.events()
+        .onEach { if (it.type == "narration") narrationChanges.tryEmit(Unit) }
         .filter { it.type == "library" }
         .map { }
         .catch { e -> throw if (e is OwnAudioException) sourceError(e) else e }
+
+    // endregion
+
+    // region Books from the phone, narration
+
+    override suspend fun uploadTarget(kind: UploadKind, fileName: String, contentType: String, sizeBytes: Long): UploadTarget = translating {
+        val link = client.createUpload(if (kind == UploadKind.COVER) UploadKinds.BOOK_COVER else UploadKinds.BOOK_FILE, fileName, contentType, sizeBytes)
+        UploadTarget(link.uploadId, link.url, link.method, link.headers, link.expiresAt)
+    }
+
+    override suspend fun upload(target: UploadTarget, body: RequestBody) = translating {
+        client.putUpload(UploadLink(target.uploadId, target.url, target.method, target.headers, target.expiresAt), body)
+    }
+
+    override suspend fun createBook(details: NewBookDetails, coverUploadId: String?, files: List<ImportedFile>, importId: String): Book = translating {
+        val made = client.createBook(
+            NewBook(
+                title = details.title,
+                author = details.authors.takeIf { it.isNotEmpty() }?.joinToString("; "),
+                narrator = details.narrators.takeIf { it.isNotEmpty() }?.joinToString("; "),
+                description = details.description,
+                visibility = details.visibility.wire,
+                coverUploadId = coverUploadId,
+                files = files.mapIndexed { index, file -> NewBook.File(file.uploadId, ImportMetadata.relativePath(index, file.fileName), file.title) },
+            ),
+            idempotencyKey = importId,
+        )
+        // The new book joins the copy on the phone at the next feed sync; until then the record
+        // is returned as the server made it.
+        BookRecord.of(made, 0).toBook(emptyMap())
+    }
+
+    private val narrationChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    override val narrationEvents: Flow<Unit> = narrationChanges.asSharedFlow()
+
+    override suspend fun narrationOptions(): NarrationOptions = translating {
+        coroutineScope {
+            val languages = async { client.narrationLanguages() }
+            val voices = client.narrationVoices()
+            NarrationOptions(languages.await(), voices)
+        }
+    }
+
+    override suspend fun narrationCharacterCount(file: File): Int = translating { client.narrationEstimate(file).estimatedCharCount }
+
+    override suspend fun narrationQuote(charCount: Int, sourceLanguage: String, targetLanguage: String, voiceId: String): NarrationQuote =
+        translating { client.narrationQuote(charCount, sourceLanguage, targetLanguage, voiceId) }
+
+    override suspend fun startNarration(file: File, title: String, sourceLanguage: String, targetLanguage: String, voiceId: String, output: NarrationOutput): NarrationJob =
+        translating { client.createNarration(file, title, sourceLanguage, targetLanguage, voiceId, output) }
+
+    override suspend fun narration(id: String): NarrationJob = translating { client.narration(id) }
 
     // endregion
 
@@ -415,6 +490,8 @@ class OwnAudioBookSource(
             is OwnAudioException.Problem -> when {
                 e.status == 400 && e.code == "invalid_grant" -> SourceException.SignInRejected
                 e.status == 401 -> SourceException.SignInRejected
+                // No room or no credit left: the screens say so in their own words.
+                e.status == 402 -> SourceException.Http(402)
                 e.status == 403 -> SourceException.NotAllowed
                 e.status == 404 -> SourceException.NotFound
                 e.status == 501 -> SourceException.Unsupported

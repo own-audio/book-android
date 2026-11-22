@@ -82,6 +82,9 @@ import audio.own.bookplayer.downloads.DownloadsContent
 import audio.own.bookplayer.downloads.LocalBookDownloads
 import audio.own.bookplayer.downloads.LocalDownloadActions
 import audio.own.core.servers.MobileData
+import audio.own.bookplayer.imports.AddBookButton
+import audio.own.bookplayer.imports.AddingActions
+import audio.own.bookplayer.imports.AddingRows
 
 /** Routes inside each tab: the tab's root, then the library pages pushed over it. */
 private object TabRoutes {
@@ -137,7 +140,7 @@ class LibraryNavigator(private val nav: NavHostController, private val known: Mu
  * while a book keeps playing.
  */
 @Composable
-fun LibraryTabs(container: AppContainer, onOpenPlayer: () -> Unit, onSettings: () -> Unit) {
+fun LibraryTabs(container: AppContainer, onOpenPlayer: () -> Unit, onSettings: () -> Unit, onAddBook: (serverId: String, narrate: Boolean) -> Unit = { _, _ -> }) {
     val servers by container.servers.state.collectAsStateWithLifecycle()
     val active by container.sources.active.collectAsStateWithLifecycle()
     val playback by container.playback.state.collectAsStateWithLifecycle()
@@ -214,7 +217,7 @@ fun LibraryTabs(container: AppContainer, onOpenPlayer: () -> Unit, onSettings: (
             holder.SaveableStateProvider("${library.serverId}|${library.record.libraryId}|$current") {
                 val nav = rememberNavController()
                 val go = remember(nav) { LibraryNavigator(nav, known) }
-                TabHost(container, library, current, nav, go, playback, offline, onSettings = onSettings, onSelectServer = { id, lib -> scope.launch { container.servers.select(id, lib) } }, onOfflineMode = { on -> scope.launch { container.preferences.setOfflineMode(on) } })
+                TabHost(container, library, current, nav, go, playback, offline, onSettings = onSettings, onAddBook = onAddBook, onSelectServer = { id, lib -> scope.launch { container.servers.select(id, lib) } }, onOfflineMode = { on -> scope.launch { container.preferences.setOfflineMode(on) } })
             }
         }
     }
@@ -231,6 +234,7 @@ private fun TabHost(
     playback: PlaybackUi,
     offline: Boolean,
     onSettings: () -> Unit,
+    onAddBook: (String, Boolean) -> Unit,
     onSelectServer: (String, String?) -> Unit,
     onOfflineMode: (Boolean) -> Unit,
 ) {
@@ -267,7 +271,7 @@ private fun TabHost(
                         )
                     }
                 }
-                Tab.LIBRARY -> LibraryRoot(container, library, go, nowPlaying, offline)
+                Tab.LIBRARY -> LibraryRoot(container, library, go, nowPlaying, offline, onAddBook)
                 Tab.DOWNLOADS -> DownloadsTab(container, onOpen = { go.book(it.serverId, it.book) })
                 Tab.SEARCH -> {
                     val vm = viewModel { SearchViewModel(source) }
@@ -387,6 +391,7 @@ private fun BooksList(
     offline: Boolean,
     onBack: (() -> Unit)? = { go.back() },
     showsSections: Boolean = isRoot,
+    onAddBook: ((String, Boolean) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("library", Context.MODE_PRIVATE) }
@@ -401,6 +406,8 @@ private fun BooksList(
         if (offline != shownOffline) vm.reload()
         shownOffline = offline
     }
+    // An import or a narration finished and the catalogue has the book now.
+    LaunchedEffect(vm, library.serverId) { container.libraryGrew.collect { if (it == library.serverId) vm.reload(refreshing = true) } }
     BooksListContent(
         title = title,
         serverId = library.serverId,
@@ -420,6 +427,35 @@ private fun BooksList(
         offline = offline,
         nowPlaying = nowPlaying,
         allBooks = if (isRoot) null else ({ source.allBooks(vm.state.value.query) }),
+        extraActions = { if (onAddBook != null) AddBookAction(container, library, offline, onAddBook) },
+        topRows = { if (isRoot) LibraryAddingRows(container, library.serverId) },
+    )
+}
+
+/** The + where the account may add books to this own.audio server, online only. */
+@Composable
+private fun AddBookAction(container: AppContainer, library: ActiveLibrary, offline: Boolean, onAddBook: (String, Boolean) -> Unit) {
+    if (library.source !is audio.own.book.library.BookUploader) return
+    val rights by container.addBookRights.rights.collectAsStateWithLifecycle()
+    LaunchedEffect(library.serverId, offline) { if (!offline) container.addBookRights.refresh(library.serverId) }
+    if (offline) return
+    val mine = rights[library.serverId] ?: return
+    AddBookButton(mine, onImport = { onAddBook(library.serverId, false) }, onNarrate = { onAddBook(library.serverId, true) })
+}
+
+@Composable
+private fun LibraryAddingRows(container: AppContainer, serverId: String) {
+    val imports by container.imports.state.collectAsStateWithLifecycle()
+    val narrations by container.narrations.entries.collectAsStateWithLifecycle()
+    AddingRows(
+        imports = imports.active(serverId),
+        snapshot = imports,
+        narrations = narrations.values.filter { it.serverId == serverId }.sortedByDescending { it.startedAtMs },
+        actions = AddingActions(
+            onRetryImport = { id -> container.scope.launch { container.imports.retry(id) } },
+            onCancelImport = { id -> container.scope.launch { container.imports.cancel(id) } },
+            onForgetNarration = { id -> container.scope.launch { container.narrations.forget(id) } },
+        ),
     )
 }
 
@@ -428,10 +464,10 @@ private fun BooksList(
  * All Books, the sections and Downloads beside the open one.
  */
 @Composable
-private fun LibraryRoot(container: AppContainer, library: ActiveLibrary, go: LibraryNavigator, nowPlaying: NowPlaying, offline: Boolean) {
+private fun LibraryRoot(container: AppContainer, library: ActiveLibrary, go: LibraryNavigator, nowPlaying: NowPlaying, offline: Boolean, onAddBook: (String, Boolean) -> Unit) {
     val wide = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() } >= 840.dp
     if (!wide) {
-        BooksList(container, library, stringResource(R.string.tab_library), BookQuery(), isRoot = true, go, nowPlaying, offline, onBack = null)
+        BooksList(container, library, stringResource(R.string.tab_library), BookQuery(), isRoot = true, go, nowPlaying, offline, onBack = null, onAddBook = onAddBook)
         return
     }
     var selection by rememberSaveable { mutableStateOf<String?>(null) }
@@ -456,7 +492,7 @@ private fun LibraryRoot(container: AppContainer, library: ActiveLibrary, go: Lib
         Box(Modifier.weight(1f)) {
             key(selection) {
                 when (selection) {
-                    null -> BooksList(container, library, stringResource(R.string.all_books), BookQuery(), isRoot = true, go, nowPlaying, offline, onBack = null, showsSections = false)
+                    null -> BooksList(container, library, stringResource(R.string.all_books), BookQuery(), isRoot = true, go, nowPlaying, offline, onBack = null, showsSections = false, onAddBook = onAddBook)
                     "DOWNLOADS" -> DownloadsTab(container, onOpen = { go.book(it.serverId, it.book) })
                     LibrarySection.SERIES.name -> {
                         val vm = viewModel(key = "sidebar-series") { ListViewModel.series(container.screenSource(library.source)) }

@@ -3,6 +3,7 @@ package audio.own.bookplayer.ui
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import audio.own.kit.ownaudio.familyBilling
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -71,6 +72,8 @@ private object Routes {
     const val LICENCES = "licences"
     const val PLAYER = "player"
     const val DOWNLOADS = "downloads"
+    const val IMPORT = "import/{id}"
+    const val NARRATE = "narrate/{id}"
 }
 
 /** The whole app: the theme with the chosen accent, the pages, and the two-factor step over them. */
@@ -103,7 +106,12 @@ private fun AppNavHost(container: AppContainer, nav: NavHostController) {
             when {
                 !servers.loaded -> LoadingScreen()
                 servers.servers.isEmpty() -> WelcomeRoute(container, onAccount = { nav.navigate("account/${it.name}") })
-                else -> LibraryTabs(container, onOpenPlayer = { nav.navigate(Routes.PLAYER) }, onSettings = { nav.navigate(Routes.SETTINGS) })
+                else -> LibraryTabs(
+                    container,
+                    onOpenPlayer = { nav.navigate(Routes.PLAYER) },
+                    onSettings = { nav.navigate(Routes.SETTINGS) },
+                    onAddBook = { id, narrate -> nav.navigate(if (narrate) "narrate/$id" else "import/$id") },
+                )
             }
         }
         composable(Routes.PLAYER) { PlayerRoute(container, onClose = back) }
@@ -268,6 +276,8 @@ private fun AppNavHost(container: AppContainer, nav: NavHostController) {
             LogsContent(lines, onBack = back, onShare = { shareLog(context, container.log, container.logHeader) })
         }
         composable(Routes.LICENCES) { LicencesContent(onBack = back) }
+        composable(Routes.IMPORT) { entry -> ImportRoute(container, arg(entry), onClose = back) }
+        composable(Routes.NARRATE) { entry -> NarrateRoute(container, arg(entry), onClose = back) }
         composable(Routes.DOWNLOADS) {
             val snapshot by container.downloads.state.collectAsStateWithLifecycle()
             CompositionLocalProvider(audio.own.bookplayer.downloads.LocalBookDownloads provides snapshot) {
@@ -284,6 +294,73 @@ private fun AppNavHost(container: AppContainer, nav: NavHostController) {
             }
         }
     }
+}
+
+@Composable
+private fun ImportRoute(container: AppContainer, serverId: String, onClose: () -> Unit) {
+    val vm = viewModel {
+        audio.own.bookplayer.imports.ImportBookViewModel(serverId, container.importReader, container.imports) {
+            container.network.state.value.let { it.connected && it.metered }
+        }
+    }
+    val state by vm.state.collectAsStateWithLifecycle()
+    LaunchedEffect(state.done) { if (state.done) onClose() }
+    val pickers = audio.own.bookplayer.imports.rememberImportPickers(onDocuments = vm::addDocuments, onFolder = vm::addFolder, onCover = vm::setCover)
+    audio.own.bookplayer.imports.ImportBookContent(
+        state,
+        audio.own.bookplayer.imports.ImportFormActions(
+            onCancel = onClose,
+            onPickFiles = pickers.audioFiles,
+            onPickFolder = pickers.folder,
+            onPickCover = pickers.cover,
+            onMove = vm::move,
+            onRemove = vm::remove,
+            onTitle = vm::setTitle,
+            onAuthor = vm::setAuthor,
+            onNarrator = vm::setNarrator,
+            onVisibility = vm::setVisibility,
+            onAdd = vm::addToLibrary,
+            onConfirmMobile = vm::start,
+            onDismissMobile = vm::dismissMobile,
+        ),
+    )
+}
+
+@Composable
+private fun NarrateRoute(container: AppContainer, serverId: String, onClose: () -> Unit) {
+    val context = LocalContext.current
+    val vm = viewModel {
+        audio.own.bookplayer.narration.NarrateBookViewModel(
+            serverId = serverId,
+            narrator = container.sources.source(serverId) as? audio.own.book.library.BookNarrator,
+            credit = {
+                container.servers.client(serverId)?.let { client ->
+                    runCatching { client.familyBilling() }.getOrNull()?.let {
+                        audio.own.bookplayer.narration.NarrationCredit(java.math.BigDecimal(it.availableMicro).movePointLeft(6), it.pricing.currency, it.depleted)
+                    }
+                }
+            },
+            copyIn = { uri -> audio.own.bookplayer.narration.copyEbook(context.applicationContext, uri) },
+            narrations = container.narrations,
+        )
+    }
+    val state by vm.state.collectAsStateWithLifecycle()
+    LaunchedEffect(state.done) { if (state.done) onClose() }
+    val pick = audio.own.bookplayer.narration.rememberEbookPicker(vm::take)
+    audio.own.bookplayer.narration.NarrateBookContent(
+        state,
+        audio.own.bookplayer.narration.NarrateActions(
+            onCancel = onClose,
+            onPick = pick,
+            onTitle = vm::setTitle,
+            onSourceLanguage = vm::setSourceLanguage,
+            onTargetLanguage = vm::setTargetLanguage,
+            onVoice = vm::setVoice,
+            onOutput = vm::setOutput,
+            onPrice = vm::price,
+            onStart = vm::start,
+        ),
+    )
 }
 
 /** A tap on the media notification opens the player. */

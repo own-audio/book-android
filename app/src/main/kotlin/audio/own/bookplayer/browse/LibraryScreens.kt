@@ -126,6 +126,10 @@ fun BooksListContent(
     contentPadding: PaddingValues = PaddingValues(),
     /** Every book of the query, for Download All on a list that isn't the whole library; null hides it. */
     allBooks: (suspend () -> List<Book>)? = null,
+    /** The Library root's + . */
+    extraActions: @Composable () -> Unit = {},
+    /** The Library root's Importing and Narrating rows, above the books. */
+    topRows: @Composable () -> Unit = {},
 ) {
     Page(
         title = title,
@@ -134,6 +138,7 @@ fun BooksListContent(
         scrolls = false,
         actions = {
             if (allBooks != null) (state.books as? Load.Loaded)?.value?.let { SetDownloadButton(serverId, it, allBooks) }
+            extraActions()
             SortFilterMenu(state, Capability.FAVOURITES in capabilities, onSort, onDescending, onFilter, onGrid)
         },
     ) {
@@ -142,6 +147,7 @@ fun BooksListContent(
             val books = state.books
             val header: @Composable () -> Unit = {
                 if (sections.isNotEmpty()) SectionChips(sections, onSection)
+                Column { topRows() }
             }
             when {
                 books !is Load.Loaded -> Column(Modifier.fillMaxSize()) {

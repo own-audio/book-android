@@ -44,6 +44,8 @@ class OwnAudioApp : Application(), SingletonImageLoader.Factory, Configuration.P
         // What the index doesn't know goes; what waited (killed mid-download) starts again.
         container.scope.launch { container.downloads.reconcile() }
         container.downloads.start()
+        // Imports WorkManager lost (cleared data, a failed enqueue) start again; the rest it runs itself.
+        runCatching { container.imports.resume() }
         container.sync.start()
         container.accountSettings.start()
         runCatching {

@@ -50,6 +50,7 @@ class MainActivity : AppCompatActivity() {
         // Sends what is queued, and brings the catalogue and other devices' positions up to date.
         container.playbackModel.setForeground(true)
         container.sync.liveUpdates.setForeground(true)
+        container.narrations.setForeground(true)
     }
 
     override fun onStop() {
@@ -57,6 +58,7 @@ class MainActivity : AppCompatActivity() {
         container.playbackModel.saveNow()
         container.playbackModel.setForeground(false)
         container.sync.liveUpdates.setForeground(false)
+        container.narrations.setForeground(false)
         super.onStop()
     }
 

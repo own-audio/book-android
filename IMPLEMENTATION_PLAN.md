@@ -27,13 +27,13 @@ are described there once for all three Android apps. The foundation is built in
 | B7 | Positions: pending progress, resume choice, "Continue from another device?" | ☑ 2026-11-21 (the dialog seen with a position written from a second device; batches through `/sync/push`) |
 | B8 | Bookmarks, favourites, finished/reset, sharing with the family | ◐ built 2026-11-21; bookmarks and reset tried on Audiobookshelf, finished/not finished on the demo; favourites unit-tested only (the demo account is read-only) |
 | B9 | Settings | ☑ 2026-11-22 (account skip intervals and speed saved to /me/settings) |
-| B10 | Import from this device (own.audio uploads) | ☐ |
-| B11 | Narrate an ebook (hosted own.audio) | ☐ |
+| B10 | Import from this device (own.audio uploads) | ◐ built 2026-11-22; on the demo up to the upload (refused, read-only); a real upload waits for a writable account |
+| B11 | Narrate an ebook (hosted own.audio) | ◐ built 2026-11-22, tested against a fake server only; open: an Idempotency-Key on starting a job (needs `:kit:ownaudio`'s createNarration to take one) |
 | B12 | Android Auto, widget, deep links, voice, background refresh | ☐ |
 | B13 | Localization, accessibility, tablets, misuse tests | ☐ |
 | B14 | Release | ☐ |
 
-**Where we stopped:** B6 and B9 built 2026-11-22. Next: B10 import, B11 narration, B12 Android Auto/widget/voice, B13 polish, guide pages.
+**Where we stopped:** B10 and B11 built 2026-11-22. Next: B12 (Android Auto, widget, deep links, voice), B13 polish, the guide; a writable own.audio account for the live checks; `:kit:ownaudio` createNarration with an Idempotency-Key (all three repos).
 
 ## Rules for whoever executes this plan
 

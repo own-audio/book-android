@@ -35,6 +35,17 @@ import audio.own.bookplayer.playback.AccountPlaybackSettings
 import audio.own.bookplayer.sync.AppSync
 import audio.own.player.core.ProxyMemory
 import androidx.work.DelegatingWorkerFactory
+import androidx.work.WorkManager
+import audio.own.book.library.BookNarrator
+import audio.own.book.library.BookUploader
+import audio.own.book.library.ChangeFeedCatalogue
+import audio.own.bookplayer.imports.AddBookRightsModel
+import audio.own.bookplayer.imports.BookImports
+import audio.own.bookplayer.imports.DocumentImportReader
+import audio.own.bookplayer.imports.ImportWorker
+import audio.own.bookplayer.imports.WorkManagerImportScheduler
+import audio.own.bookplayer.narration.BookNarrations
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.File
@@ -169,9 +180,51 @@ class AppContainer(context: Context) {
 
     val accountSettings = AccountPlaybackSettings(servers, playbackSettings, { offline.isOffline }, log, scope)
 
-    /** WorkManager's workers, with their dependencies: downloads and the periodic refresh. */
+    /** A server's library grew (an import or a narration finished) and its catalogue caught up: lists read again. */
+    val libraryGrew = MutableSharedFlow<String>(extraBufferCapacity = 4)
+
+    private fun catchUp(serverId: String) {
+        scope.launch {
+            (sources.source(serverId) as? ChangeFeedCatalogue)?.let { sources.sync(it) }
+            libraryGrew.emit(serverId)
+        }
+    }
+
+    /** What the Library's + offers on each own.audio server. */
+    val addBookRights = AddBookRightsModel { servers.client(it) }
+
+    val importReader = DocumentImportReader(app)
+
+    /** Books from this device, uploaded by a foreground job that survives a kill (B10). */
+    val imports = BookImports(
+        directory = File(app.filesDir, "imports"),
+        uploader = { id ->
+            servers.state.first { it.loaded }
+            sources.source(id) as? BookUploader
+        },
+        access = importReader,
+        scheduler = WorkManagerImportScheduler { WorkManager.getInstance(app) },
+        log = log,
+        onImported = { serverId, _ -> catchUp(serverId) },
+        onRefused = { addBookRights.refused(it) },
+    )
+
+    /** Ebooks read aloud by hosted own.audio servers (B11). */
+    val narrations = BookNarrations(
+        file = File(app.filesDir, "narrations.json"),
+        narrator = { id ->
+            servers.state.first { it.loaded }
+            sources.source(id) as? BookNarrator
+        },
+        scope = scope,
+        log = log,
+        onCompleted = { catchUp(it.serverId) },
+    )
+
+    /** WorkManager's workers, with their dependencies: downloads, imports and the periodic refresh. */
     val workerFactory = DelegatingWorkerFactory().apply {
         addFactory(BookDownloads.workerFactory { downloads })
+        addFactory(ImportWorker.factory { imports })
         addFactory(sync.refreshWorkerFactory)
     }
 

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- B10: Import a Book. -->
+    <string name="import_a_book">Import a Book</string>
+    <string name="choose_audio_files">Choose Audio Files</string>
+    <string name="choose_a_folder">Choose a Folder</string>
+    <string name="add_more_files">Add More Files</string>
+    <string name="files_in_playing_order">Files, in playing order</string>
+    <plurals name="import_files_summary">
+        <item quantity="one">%1$d file · %2$s · %3$s</item>
+        <item quantity="other">%1$d files · %2$s · %3$s</item>
+    </plurals>
+    <plurals name="import_row_summary">
+        <item quantity="one">%1$d file · %2$s</item>
+        <item quantity="other">%1$d files · %2$s</item>
+    </plurals>
+    <string name="book">Book</string>
+    <string name="title">Title</string>
+    <string name="author">Author</string>
+    <string name="several_names_hint">Several with ; between them</string>
+    <string name="cover">Cover</string>
+    <string name="cover_from_file">From the file, or choose</string>
+    <string name="who_sees_it">Who sees it</string>
+    <string name="just_me">Just Me</string>
+    <string name="the_family">The family</string>
+    <string name="add_to_library">Add to Library</string>
+    <string name="import_footer">The files are uploaded in the background; you can leave this screen. The book appears in the library once the upload is done.</string>
+    <string name="upload_over_mobile_data">Upload %1$s over mobile data?</string>
+    <string name="upload_now">Upload Now</string>
+    <string name="importing">Importing</string>
+    <string name="uploading_title">Uploading %1$s</string>
+    <string name="move_up">Move Up</string>
+    <string name="move_down">Move Down</string>
+    <string name="import_no_room">There is no room or credit left for this book. Add credit or free some space, then try again.</string>
+    <string name="import_not_allowed">This account may not add books here. The family\'s admin can allow it.</string>
+    <string name="storage_refused">The storage refused the file (%1$d).</string>
+    <string name="import_file_unreadable">A file can no longer be read. Remove this import and choose the files again.</string>
+    <string name="import_server_gone">This server is no longer set up in the app.</string>
+    <string name="add_a_book">Add a Book</string>
+    <string name="import_audio_files_menu">Import Audio Files…</string>
+    <string name="narrate_an_ebook_menu">Narrate an Ebook…</string>
+
+    <!-- B11: Narrate an Ebook. -->
+    <string name="narrate_an_ebook">Narrate an Ebook</string>
+    <string name="choose_an_ebook">Choose an Ebook</string>
+    <string name="ebook_footer">EPUB, MOBI or plain text. The file goes to the server, which reads it aloud; it is not kept afterwards.</string>
+    <string name="voice">Voice</string>
+    <string name="written_in">Written in</string>
+    <string name="read_in">Read in</string>
+    <string name="female">female</string>
+    <string name="male">male</string>
+    <string name="voice_line">%1$s · %2$s</string>
+    <string name="one_per_chapter">One per chapter</string>
+    <string name="one_for_the_whole_book">One for the whole book</string>
+    <string name="loading_voices">Loading voices…</string>
+    <string name="characters">Characters</string>
+    <string name="translation">Translation</string>
+    <string name="price">Price</string>
+    <string name="family_credit">Family Credit</string>
+    <string name="get_the_price">Get the Price</string>
+    <string name="price_this_voice">Price This Voice</string>
+    <string name="narrate">Narrate</string>
+    <string name="narrate_for">Narrate for %1$s</string>
+    <string name="price_footer">The server counts the characters it will read and quotes the price; nothing is charged until you start.</string>
+    <string name="price_footer_translated">Read in another language than it is written in, the book is translated first; the quote includes that.</string>
+    <string name="narrate_footer">The price is taken from the family\'s credit when the book is done. A narration takes minutes to hours; the Library shows how far it is, and the book appears there at the end.</string>
+    <string name="narration_no_credit">The family\'s credit doesn\'t cover this narration.</string>
+    <string name="narrating">Narrating</string>
+    <string name="waiting_its_turn">Waiting its turn</string>
+    <string name="reading_the_ebook">Reading the ebook</string>
+    <string name="translating">Translating</string>
+    <string name="putting_the_book_together">Putting the book together</string>
+    <string name="narrating_chapter">Narrating · chapter %1$d of %2$d</string>
+    <string name="narration_done">Done · %1$s</string>
+    <string name="narration_failed">The narration failed.</string>
+</resources>
