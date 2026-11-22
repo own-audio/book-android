@@ -12,6 +12,7 @@ import audio.own.book.library.Book
 import audio.own.bookplayer.browse.Samples
 import audio.own.core.designsystem.theme.AccentChoice
 import audio.own.core.designsystem.theme.OwnAudioTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -56,5 +57,26 @@ class DownloadsSwipeTest {
         val row = compose.onNodeWithTag("downloads.${Samples.emma.id}").fetchSemanticsNode().boundsInRoot
         val root = compose.onRoot().fetchSemanticsNode().boundsInRoot
         assertTrue("Emma's row at ${row.left}..${row.right} of ${root.width}", row.left >= 0f && row.right <= root.right)
+    }
+
+    @Test
+    fun oneSwipeRemovesOnceAndARowThatStaysSpringsBack() {
+        val only = entry(Samples.pride, 30)
+        // The removal hasn't landed yet: the book is still in the snapshot.
+        val snapshot = BookDownloadsSnapshot(mapOf(only.compositeId to only), loaded = true)
+        val removed = mutableListOf<String>()
+        compose.setContent {
+            OwnAudioTheme(accent = AccentChoice.APP, darkTheme = false, reduceMotion = true) {
+                Surface(color = MaterialTheme.colorScheme.background) {
+                    DownloadsContent(snapshot, emptyList(), onOpen = {}, onRemove = { removed += it.compositeId }, onRetryFailed = {}, onRemoveAll = {})
+                }
+            }
+        }
+        val before = compose.onNodeWithTag("downloads.${Samples.pride.id}").fetchSemanticsNode().boundsInRoot.left
+        compose.onNodeWithTag("downloads.${Samples.pride.id}").performTouchInput { swipeLeft() }
+        compose.waitForIdle()
+        assertEquals("one swipe, one removal", listOf(only.compositeId), removed)
+        val row = compose.onNodeWithTag("downloads.${Samples.pride.id}").fetchSemanticsNode().boundsInRoot
+        assertTrue("the row is back in place, not left open at ${row.left}", row.left in (before - 1)..(before + 1))
     }
 }

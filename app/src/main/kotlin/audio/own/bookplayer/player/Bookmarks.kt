@@ -29,7 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -143,7 +142,6 @@ fun BookmarkRow(bookmark: Bookmark, actions: BookmarkActions, horizontalPadding:
     var renaming by rememberSaveable { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     val swipe = rememberSwipeToDismissBoxState()
-    val scope = rememberCoroutineScope()
     val editable = actions.onRename != null || actions.onDelete != null
     val row = @Composable {
         Row(
@@ -174,19 +172,18 @@ fun BookmarkRow(bookmark: Bookmark, actions: BookmarkActions, horizontalPadding:
         }
     }
     if (editable) {
+        // The row springs back: a rename keeps it, and a deleted one leaves the list anyway.
+        audio.own.bookplayer.ui.SwipeActions(swipe) { direction ->
+            when (direction) {
+                SwipeToDismissBoxValue.EndToStart -> actions.onDelete?.invoke(bookmark)
+                SwipeToDismissBoxValue.StartToEnd -> renaming = true
+                SwipeToDismissBoxValue.Settled -> Unit
+            }
+        }
         SwipeToDismissBox(
             state = swipe,
             enableDismissFromStartToEnd = actions.onRename != null,
             enableDismissFromEndToStart = actions.onDelete != null,
-            // The row springs back: a rename keeps it, and a deleted one leaves the list anyway.
-            onDismiss = { direction ->
-                when (direction) {
-                    SwipeToDismissBoxValue.EndToStart -> actions.onDelete?.invoke(bookmark)
-                    SwipeToDismissBoxValue.StartToEnd -> renaming = true
-                    SwipeToDismissBoxValue.Settled -> Unit
-                }
-                scope.launch { swipe.reset() }
-            },
             backgroundContent = {
                 val deleting = swipe.dismissDirection == SwipeToDismissBoxValue.EndToStart
                 Box(

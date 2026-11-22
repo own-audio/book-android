@@ -182,3 +182,24 @@ fun Section(header: String?, modifier: Modifier = Modifier, footer: String? = nu
         }
     }
 }
+
+/**
+ * Runs [action] once for each swipe of a row that settles open, then closes the row again. Not
+ * from an effect on the box's `currentValue` or through its `onDismiss`: in own.audio Podcasts a
+ * row that stayed in its list was acted on again and again while it stayed open (899 writes to a
+ * server), and a row that stays here (a renamed bookmark, a server kept after Cancel) has to
+ * spring back.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SwipeActions(state: androidx.compose.material3.SwipeToDismissBoxState, action: (androidx.compose.material3.SwipeToDismissBoxValue) -> Unit) {
+    val current = androidx.compose.runtime.rememberUpdatedState(action)
+    androidx.compose.runtime.LaunchedEffect(state) {
+        androidx.compose.runtime.snapshotFlow { state.settledValue }.collect { value ->
+            if (value != androidx.compose.material3.SwipeToDismissBoxValue.Settled) {
+                current.value(value)
+                state.reset()
+            }
+        }
+    }
+}

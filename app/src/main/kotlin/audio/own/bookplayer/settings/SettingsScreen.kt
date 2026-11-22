@@ -36,7 +36,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -132,7 +131,11 @@ fun SettingsContent(
     Page(title = stringResource(R.string.settings), onBack = onBack) {
         Section(header = stringResource(R.string.servers), footer = stringResource(AppR.string.servers_footer)) {
             ui.servers.forEach { server ->
-                ServerRow(server, selected = server.id == ui.activeId, refused = server.id in ui.refused, onOpen = { onOpenServer(server.id) }, onRemove = { removing = server })
+                // Keyed by server: a row's swipe state must not pass to the server that moves up
+                // into its place when one above is removed.
+                androidx.compose.runtime.key(server.id) {
+                    ServerRow(server, selected = server.id == ui.activeId, refused = server.id in ui.refused, onOpen = { onOpenServer(server.id) }, onRemove = { removing = server })
+                }
                 RowDivider(start = 64.dp)
             }
             ButtonRow(stringResource(R.string.add_a_server), onClick = onAddServer, icon = Icons.Filled.Add, color = MaterialTheme.colorScheme.primary)
@@ -179,12 +182,7 @@ fun SettingsContent(
 private fun ServerRow(server: ServerRecord, selected: Boolean, refused: Boolean, onOpen: () -> Unit, onRemove: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     val swipe = rememberSwipeToDismissBoxState()
-    LaunchedEffect(swipe.currentValue) {
-        if (swipe.currentValue == SwipeToDismissBoxValue.EndToStart) {
-            onRemove()
-            swipe.reset()
-        }
-    }
+    audio.own.bookplayer.ui.SwipeActions(swipe) { if (it == SwipeToDismissBoxValue.EndToStart) onRemove() }
     val palette = LocalPalette.current
     SwipeToDismissBox(
         state = swipe,

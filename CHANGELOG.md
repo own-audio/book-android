@@ -5,6 +5,7 @@ All notable changes to own.audio Books for Android. The format follows
 
 ## [Unreleased]
 
+- Every swipe acts once and the row closes again (downloads, bookmarks both ways, and the servers in Settings, whose rows are now keyed by server): a check on the row's swiped state could act again and again while the row stayed open, as it did in own.audio Podcasts.
 - Fixes from the emulator test against real servers (docs/tests/2026-11-22-emulator.md): the book page shows a playing file's own chapter marks, the player's tools stay reachable on short phones, bookmarks and progress on the book page follow the player, Back on a tab's first screen goes to Home, Whole Library When Offline reloads the Library, Audiobookshelf series without a number and bookmarks without a label, a second swipe in Downloads, tab labels at 200 % text.
 - Release preparation: a release workflow for tags (both flavours' APKs and the Play bundle, signed when the repository has the key), the guide published by GitHub Pages, store texts in English and Czech with the 512 px icon (also F-Droid's layout), the APK size budget per app, and docs/release.md with the maintainer's steps.
 - Adding an account the app already has (the same server and the same user) is refused with "This server is already added. To sign in again, open it in Settings."; another user on the same server can still be added.

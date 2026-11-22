@@ -38,7 +38,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -191,12 +190,7 @@ fun DownloadsContent(
 private fun DownloadRow(entry: DownloadedBook, serverName: String, onOpen: () -> Unit, onRemove: () -> Unit) {
     val palette = LocalPalette.current
     val swipe = rememberSwipeToDismissBoxState()
-    LaunchedEffect(swipe.currentValue) {
-        if (swipe.currentValue == SwipeToDismissBoxValue.EndToStart) {
-            onRemove()
-            swipe.reset()
-        }
-    }
+    audio.own.bookplayer.ui.SwipeActions(swipe) { if (it == SwipeToDismissBoxValue.EndToStart) onRemove() }
     SwipeToDismissBox(
         state = swipe,
         enableDismissFromStartToEnd = false,
