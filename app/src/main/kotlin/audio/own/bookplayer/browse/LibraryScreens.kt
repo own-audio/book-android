@@ -1,5 +1,7 @@
 package audio.own.bookplayer.browse
 
+import audio.own.bookplayer.downloads.SetDownloadButton
+
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -122,13 +124,18 @@ fun BooksListContent(
     offline: Boolean = false,
     nowPlaying: NowPlaying = NowPlaying(),
     contentPadding: PaddingValues = PaddingValues(),
+    /** Every book of the query, for Download All on a list that isn't the whole library; null hides it. */
+    allBooks: (suspend () -> List<Book>)? = null,
 ) {
     Page(
         title = title,
         onBack = onBack,
         modifier = modifier,
         scrolls = false,
-        actions = { SortFilterMenu(state, Capability.FAVOURITES in capabilities, onSort, onDescending, onFilter, onGrid) },
+        actions = {
+            if (allBooks != null) (state.books as? Load.Loaded)?.value?.let { SetDownloadButton(serverId, it, allBooks) }
+            SortFilterMenu(state, Capability.FAVOURITES in capabilities, onSort, onDescending, onFilter, onGrid)
+        },
     ) {
         val bottom = contentPadding.calculateBottomPadding() + Tokens.Spacing.lg
         PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
@@ -336,7 +343,13 @@ fun SeriesDetailContent(
     nowPlaying: NowPlaying = NowPlaying(),
     contentPadding: PaddingValues = PaddingValues(),
 ) {
-    Page(title = (state as? Load.Loaded)?.value?.first?.name ?: title, onBack = onBack, scrolls = false) {
+    val loaded = (state as? Load.Loaded)?.value
+    Page(
+        title = loaded?.first?.name ?: title,
+        onBack = onBack,
+        scrolls = false,
+        actions = { loaded?.first?.books?.let { SetDownloadButton(serverId, it) } },
+    ) {
         LoadStateView(state.forView(), onRetry = onRetry) { (series, progress) ->
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding())) {
                 items(series.books.orEmpty(), key = { it.id }) { book ->
@@ -373,7 +386,13 @@ fun CollectionDetailContent(
     onOpenBook: (Book) -> Unit,
     contentPadding: PaddingValues = PaddingValues(),
 ) {
-    Page(title = (state as? Load.Loaded)?.value?.first?.name ?: stringResource(R.string.collections), onBack = onBack, scrolls = false) {
+    val loaded = (state as? Load.Loaded)?.value
+    Page(
+        title = loaded?.first?.name ?: stringResource(R.string.collections),
+        onBack = onBack,
+        scrolls = false,
+        actions = { loaded?.first?.books?.let { SetDownloadButton(serverId, it) } },
+    ) {
         LoadStateView(state.forView(), onRetry = onRetry) { (collection, progress) ->
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding())) {
                 items(collection.books, key = { it.id }) { book -> BookRow(serverId, book, progress[book.id], Modifier.clickable { onOpenBook(book) }) }

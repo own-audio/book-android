@@ -80,8 +80,8 @@ data class HomeState(
     val refreshing: Boolean = false,
 )
 
-/** The shelves of the active server; offline, what is on the phone (nothing until downloads, B6). */
-class HomeViewModel(private val source: BookSource?, private val isOffline: () -> Boolean) : ViewModel() {
+/** The shelves of the active server; offline, what is on the phone (the source says, [audio.own.book.library.OfflineBookSource]). */
+class HomeViewModel(private val source: BookSource?) : ViewModel() {
     private val _state = MutableStateFlow(HomeState())
     val state: StateFlow<HomeState> = _state.asStateFlow()
 
@@ -92,10 +92,6 @@ class HomeViewModel(private val source: BookSource?, private val isOffline: () -
     /** [quietly]: keep what is shown while the new shelves load, and keep it on a failure. */
     fun reload(quietly: Boolean = false, refreshing: Boolean = false) {
         val source = source ?: return
-        if (isOffline()) {
-            _state.update { it.copy(shelves = Load.Loaded(emptyList()), refreshing = false) }
-            return
-        }
         if (!quietly && _state.value.shelves !is Load.Loaded) _state.update { it.copy(shelves = Load.Loading) }
         if (refreshing) _state.update { it.copy(refreshing = true) }
         viewModelScope.launch {

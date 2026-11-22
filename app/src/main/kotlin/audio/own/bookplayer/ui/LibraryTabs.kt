@@ -74,11 +74,19 @@ import audio.own.core.designsystem.components.EmptyState
 import audio.own.core.designsystem.theme.LocalPalette
 import audio.own.core.designsystem.theme.Tokens
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.testTag
+import audio.own.book.library.allBooks
+import audio.own.bookplayer.downloads.DownloadActions
+import audio.own.bookplayer.downloads.DownloadsContent
+import audio.own.bookplayer.downloads.LocalBookDownloads
+import audio.own.bookplayer.downloads.LocalDownloadActions
+import audio.own.core.servers.MobileData
 
 /** Routes inside each tab: the tab's root, then the library pages pushed over it. */
 private object TabRoutes {
     const val ROOT = "root"
-    const val BOOK = "book/{id}"
+    const val BOOK = "book/{id}?server={server}"
     const val BOOKS = "books/{kind}/{id}?title={title}"
     const val PEOPLE = "people/{kind}"
     const val SERIES = "series"
@@ -92,6 +100,12 @@ class LibraryNavigator(private val nav: NavHostController, private val known: Mu
     fun book(book: Book) {
         known[book.id] = book
         nav.navigate("book/${Uri.encode(book.id)}")
+    }
+
+    /** A book of any server: Downloads lists every server's. */
+    fun book(serverId: String, book: Book) {
+        known[book.id] = book
+        nav.navigate("book/${Uri.encode(book.id)}?server=${Uri.encode(serverId)}")
     }
 
     fun author(id: String, name: String) = nav.navigate("books/author/${Uri.encode(id)}?title=${Uri.encode(name)}")
@@ -129,12 +143,26 @@ fun LibraryTabs(container: AppContainer, onOpenPlayer: () -> Unit, onSettings: (
     val playback by container.playback.state.collectAsStateWithLifecycle()
     val offlineMode by container.preferences.offlineMode.collectAsStateWithLifecycle(initialValue = false)
     val network by container.network.state.collectAsStateWithLifecycle()
-    val offline = offlineMode || !network.connected
+    val prefs by container.playbackSettings.prefs.collectAsStateWithLifecycle()
+    val downloads by container.downloads.state.collectAsStateWithLifecycle()
+    // As OfflineSwitch decides it: Offline Mode or Downloaded Only on mobile data is the listener's choice.
+    val offlineByChoice = offlineMode || (network.connected && network.metered && prefs.mobileData == MobileData.DOWNLOADED_ONLY)
+    val offline = offlineByChoice || !network.connected
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val downloadActions = remember(offline) {
+        DownloadActions(
+            offline = offline,
+            download = { serverId, book -> container.scope.launch { runCatching { container.downloads.download(serverId, book) }.onFailure { container.log.error("downloads", it.message ?: "download failed") } } },
+            downloadAll = { serverId, books -> container.scope.launch { runCatching { container.downloads.downloadAll(serverId, books()) } } },
+            remove = { serverId, books -> container.scope.launch { container.downloads.remove(serverId, books) } },
+            retry = { serverId, book -> container.scope.launch { runCatching { container.downloads.retry(serverId, book) } } },
+        )
+    }
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     val holder = rememberSaveableStateHolder()
     val known = remember { mutableMapOf<String, Book>() }
 
+    CompositionLocalProvider(LocalBookDownloads provides downloads, LocalDownloadActions provides downloadActions) {
     TabsScreen(
         servers = servers.servers,
         activeId = servers.activeId,
@@ -143,11 +171,28 @@ fun LibraryTabs(container: AppContainer, onOpenPlayer: () -> Unit, onSettings: (
         onSelect = { tab = it },
         banner = {
             if (offline) {
+                // With Whole Library on, the lists are full and it is playing that is limited.
+                val whole = prefs.wholeLibraryOffline
+                val text = when {
+                    offlineByChoice && whole -> R.string.banner_offline_mode_whole
+                    offlineByChoice -> R.string.banner_offline_mode
+                    whole -> R.string.banner_no_network_whole
+                    else -> R.string.banner_no_network
+                }
                 audio.own.core.designsystem.components.OfflineBanner(
-                    stringResource(if (offlineMode) R.string.banner_offline_mode else R.string.banner_no_network),
-                    Modifier.padding(bottom = Tokens.Spacing.xs),
-                    actionLabel = if (offlineMode) stringResource(audio.own.core.strings.R.string.turn_off) else null,
-                    onAction = if (offlineMode) ({ scope.launch { container.preferences.setOfflineMode(false) } }) else null,
+                    stringResource(text),
+                    Modifier.padding(bottom = Tokens.Spacing.xs).testTag("offline.banner"),
+                    actionLabel = if (offlineByChoice) stringResource(audio.own.core.strings.R.string.turn_off) else null,
+                    onAction = if (offlineByChoice) {
+                        {
+                            scope.launch {
+                                container.preferences.setOfflineMode(false)
+                                if (prefs.mobileData == MobileData.DOWNLOADED_ONLY) container.playbackSettings.update { it.copy(mobileData = MobileData.SAVER) }
+                            }
+                        }
+                    } else {
+                        null
+                    },
                 )
             }
         },
@@ -173,6 +218,7 @@ fun LibraryTabs(container: AppContainer, onOpenPlayer: () -> Unit, onSettings: (
             }
         }
     }
+    }
 }
 
 @Composable
@@ -188,7 +234,8 @@ private fun TabHost(
     onSelectServer: (String, String?) -> Unit,
     onOfflineMode: (Boolean) -> Unit,
 ) {
-    val source = library.source
+    // Offline, the screens list what is on the phone (or the whole own.audio catalogue, by choice).
+    val source = remember(library.source) { container.screenSource(library.source) }
     val serverId = library.serverId
     val nowPlaying = NowPlaying(playback.bookId, playback.isPlaying)
     fun arg(entry: NavBackStackEntry, name: String) = entry.arguments?.getString(name).orEmpty()
@@ -199,7 +246,7 @@ private fun TabHost(
                 Tab.HOME -> {
                     val servers by container.servers.state.collectAsStateWithLifecycle()
                     val offlineMode by container.preferences.offlineMode.collectAsStateWithLifecycle(initialValue = false)
-                    val vm = viewModel { HomeViewModel(source) { container.offline.isOffline } }
+                    val vm = viewModel { HomeViewModel(source) }
                     val state by vm.state.collectAsStateWithLifecycle()
                     ReloadOnPause(playback.isPlaying) { vm.reload(quietly = true) }
                     LaunchedEffect(offline) { vm.reload(quietly = true) }
@@ -221,9 +268,7 @@ private fun TabHost(
                     }
                 }
                 Tab.LIBRARY -> LibraryRoot(container, library, go, nowPlaying, offline)
-                Tab.DOWNLOADS -> Page(title = stringResource(R.string.tab_downloads), onBack = null, scrolls = false) {
-                    EmptyState(Icons.Filled.DownloadForOffline, stringResource(R.string.nothing_downloaded), stringResource(R.string.downloads_later))
-                }
+                Tab.DOWNLOADS -> DownloadsTab(container, onOpen = { go.book(it.serverId, it.book) })
                 Tab.SEARCH -> {
                     val vm = viewModel { SearchViewModel(source) }
                     val state by vm.state.collectAsStateWithLifecycle()
@@ -241,13 +286,15 @@ private fun TabHost(
         }
         composable(TabRoutes.BOOK) { entry ->
             val id = arg(entry, "id")
+            val serverId = arg(entry, "server").ifEmpty { serverId }
+            val source = if (serverId == library.serverId) source else container.sources.source(serverId)?.let(container::screenSource)
             val vm = viewModel {
                 BookViewModel(
-                    source, id, go.known(id),
+                    source, id, go.known(id) ?: container.downloads.downloadedBook(audio.own.book.library.BookId.of(serverId, id).value),
                     isOffline = { container.offline.isOffline },
                     markFinished = { book, finished -> container.playbackModel.markFinished(serverId, book, finished) },
                     resetProgress = { book -> container.playbackModel.resetProgress(serverId, book) },
-                    onShared = { (source as? audio.own.book.library.ChangeFeedCatalogue)?.let { container.scope.launch { container.sources.sync(it) } } },
+                    onShared = { (container.sources.source(serverId) as? audio.own.book.library.ChangeFeedCatalogue)?.let { container.scope.launch { container.sources.sync(it) } } },
                 )
             }
             val state by vm.state.collectAsStateWithLifecycle()
@@ -343,10 +390,17 @@ private fun BooksList(
 ) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("library", Context.MODE_PRIVATE) }
+    val source = remember(library.source) { container.screenSource(library.source) }
     val vm = viewModel(key = "books|$isRoot|$query") {
-        BooksListViewModel(library.source, query, grid = prefs.getBoolean("grid", true), onGrid = { on -> prefs.edit { putBoolean("grid", on) } })
+        BooksListViewModel(source, query, grid = prefs.getBoolean("grid", true), onGrid = { on -> prefs.edit { putBoolean("grid", on) } })
     }
     val state by vm.state.collectAsStateWithLifecycle()
+    // Offline or back online: the list is another one now.
+    var shownOffline by remember { mutableStateOf(offline) }
+    LaunchedEffect(offline) {
+        if (offline != shownOffline) vm.reload()
+        shownOffline = offline
+    }
     BooksListContent(
         title = title,
         serverId = library.serverId,
@@ -365,6 +419,7 @@ private fun BooksList(
         onSection = go::section,
         offline = offline,
         nowPlaying = nowPlaying,
+        allBooks = if (isRoot) null else ({ source.allBooks(vm.state.value.query) }),
     )
 }
 
@@ -402,22 +457,20 @@ private fun LibraryRoot(container: AppContainer, library: ActiveLibrary, go: Lib
             key(selection) {
                 when (selection) {
                     null -> BooksList(container, library, stringResource(R.string.all_books), BookQuery(), isRoot = true, go, nowPlaying, offline, onBack = null, showsSections = false)
-                    "DOWNLOADS" -> Page(title = stringResource(R.string.tab_downloads), onBack = null, scrolls = false) {
-                        EmptyState(Icons.Filled.DownloadForOffline, stringResource(R.string.nothing_downloaded), stringResource(R.string.downloads_later))
-                    }
+                    "DOWNLOADS" -> DownloadsTab(container, onOpen = { go.book(it.serverId, it.book) })
                     LibrarySection.SERIES.name -> {
-                        val vm = viewModel(key = "sidebar-series") { ListViewModel.series(library.source) }
+                        val vm = viewModel(key = "sidebar-series") { ListViewModel.series(container.screenSource(library.source)) }
                         val state by vm.state.collectAsStateWithLifecycle()
                         SeriesListContent(state, onBack = null, onRetry = vm::reload, onOpen = { go.series(it.id, it.name) })
                     }
                     LibrarySection.COLLECTIONS.name -> {
-                        val vm = viewModel(key = "sidebar-collections") { ListViewModel.collections(library.source) }
+                        val vm = viewModel(key = "sidebar-collections") { ListViewModel.collections(container.screenSource(library.source)) }
                         val state by vm.state.collectAsStateWithLifecycle()
                         CollectionsContent(state, onBack = null, onRetry = vm::reload, onOpen = { go.collection(it.id) })
                     }
                     else -> {
                         val narrators = selection == LibrarySection.NARRATORS.name
-                        val vm = viewModel(key = "sidebar-$selection") { ListViewModel.people(library.source, narrators) }
+                        val vm = viewModel(key = "sidebar-$selection") { ListViewModel.people(container.screenSource(library.source), narrators) }
                         val state by vm.state.collectAsStateWithLifecycle()
                         PeopleContent(narrators, state, onBack = null, onRetry = vm::reload, onOpen = { if (narrators) go.narrator(it.id, it.name) else go.author(it.id, it.name) })
                     }
@@ -425,4 +478,19 @@ private fun LibraryRoot(container: AppContainer, library: ActiveLibrary, go: Lib
             }
         }
     }
+}
+
+/** The Downloads tab: every server's books on the phone. */
+@Composable
+private fun DownloadsTab(container: AppContainer, onOpen: (audio.own.bookplayer.downloads.DownloadedBook) -> Unit) {
+    val snapshot by container.downloads.state.collectAsStateWithLifecycle()
+    val servers by container.servers.state.collectAsStateWithLifecycle()
+    DownloadsContent(
+        snapshot = snapshot,
+        servers = servers.servers,
+        onOpen = onOpen,
+        onRemove = { entry -> container.scope.launch { container.downloads.remove(entry.compositeId) } },
+        onRetryFailed = { container.scope.launch { container.downloads.retryFailed() } },
+        onRemoveAll = { container.scope.launch { container.downloads.removeAll() } },
+    )
 }

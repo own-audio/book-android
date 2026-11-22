@@ -103,6 +103,11 @@ data class SettingsUi(
     /** Servers that refuse the saved sign-in. */
     val refused: Set<String> = emptySet(),
     val playback: PlaybackPrefs = PlaybackPrefs(),
+    /** Bytes of the books on this device. */
+    val downloadedBytes: Long = 0,
+    val offlineMode: Boolean = false,
+    /** Whole Library When Offline is for own.audio servers only. */
+    val hasOwnAudio: Boolean = false,
 )
 
 @Composable
@@ -117,6 +122,8 @@ fun SettingsContent(
     onLicences: () -> Unit,
     onLogs: () -> Unit,
     onPlayback: ((PlaybackPrefs) -> PlaybackPrefs) -> Unit = {},
+    onDownloads: () -> Unit = {},
+    onOfflineMode: (Boolean) -> Unit = {},
 ) {
     var choosing by remember { mutableStateOf<PlaybackChoice?>(null) }
     var removing by remember { mutableStateOf<ServerRecord?>(null) }
@@ -130,6 +137,8 @@ fun SettingsContent(
             }
             ButtonRow(stringResource(R.string.add_a_server), onClick = onAddServer, icon = Icons.Filled.Add, color = MaterialTheme.colorScheme.primary)
         }
+
+        DownloadsSection(ui, onDownloads, onOfflineMode, onChoose = { choosing = it }, onPlayback = onPlayback)
 
         PlaybackSections(ui.playback, onChoose = { choosing = it }, onPlayback = onPlayback)
 
@@ -256,7 +265,35 @@ private fun LanguageDialog(current: AppLanguage, onChoose: (AppLanguage) -> Unit
 }
 
 /** The pickers of the Playback and Streaming sections. */
-enum class PlaybackChoice { SKIP_BACK, SKIP_FORWARD, SPEED, MOBILE_DATA, KEEP_AHEAD }
+enum class PlaybackChoice { SKIP_BACK, SKIP_FORWARD, SPEED, MOBILE_DATA, KEEP_AHEAD, KEEP_AT_MOST }
+
+@Composable
+private fun keepAtMostLabel(gb: Int?) = if (gb == null) stringResource(AppR.string.no_limit) else stringResource(AppR.string.size_gb, gb)
+
+/** Downloads and offline (book-ios `SettingsView`): the downloads, Offline Mode, Wi-Fi only, the limit, Whole Library. */
+@Composable
+private fun DownloadsSection(
+    ui: SettingsUi,
+    onDownloads: () -> Unit,
+    onOfflineMode: (Boolean) -> Unit,
+    onChoose: (PlaybackChoice) -> Unit,
+    onPlayback: ((PlaybackPrefs) -> PlaybackPrefs) -> Unit,
+) {
+    val prefs = ui.playback
+    Section(header = null, footer = stringResource(AppR.string.downloads_footer)) {
+        ValueRow(stringResource(AppR.string.tab_downloads), audio.own.bookplayer.downloads.bytesText(ui.downloadedBytes), onClick = onDownloads)
+        RowDivider()
+        SwitchRow(stringResource(AppR.string.offline_mode), ui.offlineMode, onCheckedChange = onOfflineMode)
+        RowDivider()
+        SwitchRow(stringResource(AppR.string.download_on_wifi_only), prefs.downloadsWifiOnly, onCheckedChange = { on -> onPlayback { it.copy(downloadsWifiOnly = on) } })
+        RowDivider()
+        ValueRow(stringResource(AppR.string.keep_at_most), keepAtMostLabel(prefs.keepAtMostGb), onClick = { onChoose(PlaybackChoice.KEEP_AT_MOST) })
+        if (ui.hasOwnAudio) {
+            RowDivider()
+            SwitchRow(stringResource(AppR.string.whole_library_offline), prefs.wholeLibraryOffline, onCheckedChange = { on -> onPlayback { it.copy(wholeLibraryOffline = on) } })
+        }
+    }
+}
 
 private val NEW_BOOK_SPEEDS = listOf(0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
 
@@ -309,6 +346,9 @@ private fun ChoiceDialog(choice: PlaybackChoice, prefs: PlaybackPrefs, onPick: (
         }
         PlaybackChoice.KEEP_AHEAD -> stringResource(AppR.string.keep_ahead) to PlaybackPrefs.LOOK_AHEAD_CHOICES.map { minutes ->
             Option(stringResource(AppR.string.length_minutes, minutes), minutes == prefs.lookAheadMinutes) { it.copy(lookAheadMinutes = minutes) }
+        }
+        PlaybackChoice.KEEP_AT_MOST -> stringResource(AppR.string.keep_at_most) to PlaybackPrefs.KEEP_AT_MOST_CHOICES.map { gb ->
+            Option(keepAtMostLabel(gb), gb == prefs.keepAtMostGb) { it.copy(keepAtMostGb = gb) }
         }
     }
     AlertDialog(

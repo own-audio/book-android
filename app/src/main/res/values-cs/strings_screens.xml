@@ -20,7 +20,6 @@
         <item quantity="many">%1$d knihy</item>
         <item quantity="other">%1$d knih</item>
     </plurals>
-    <string name="downloads_later">Stažené knihy ze všech serverů se objeví tady.</string>
 
     <string name="series">Série</string>
     <string name="authors">Autoři</string>
@@ -179,4 +178,35 @@
     <string name="reset_progress_message">Pozice se zapomene na všech zařízeních.</string>
     <string name="share_with_family">Sdílet s rodinou</string>
     <string name="keep_to_myself">Nastavit jako soukromé</string>
+    <!-- Downloads and offline (B6, B9). -->
+    <string name="downloads_empty_text">Stáhněte knihu z její stránky, nebo celou sérii, autora či sbírku šipkou nad seznamem, a poslouchejte bez sítě.</string>
+    <string name="downloading">Stahuje se</string>
+    <string name="downloading_title">Stahuje se %1$s</string>
+    <string name="downloading_books">Stahují se knihy</string>
+    <string name="downloading_percent">Stahuje se… %1$d %%</string>
+    <string name="downloading_percent_short">Stahuje se %1$d %%</string>
+    <string name="download_failed_retry">Stažení selhalo, zkusit znovu</string>
+    <string name="download_server_did_not_send">Server soubor neposlal.</string>
+    <string name="download_all">Stáhnout vše</string>
+    <string name="all_downloaded">Vše staženo</string>
+    <plurals name="retry_failed">
+        <item quantity="one">Zkusit znovu %1$d neúspěšné</item>
+        <item quantity="few">Zkusit znovu %1$d neúspěšná</item>
+        <item quantity="many">Zkusit znovu %1$d neúspěšného</item>
+        <item quantity="other">Zkusit znovu %1$d neúspěšných</item>
+    </plurals>
+    <string name="remove_all_downloads">Odebrat všechna stažení</string>
+    <string name="remove_all_downloads_question">Odebrat všechna stažení?</string>
+    <string name="remove_all_downloads_message">Na serveru zůstanou a můžete je stáhnout znovu.</string>
+    <string name="on_this_device_bytes">%1$s v tomto zařízení.</string>
+    <string name="removed_server">Odebraný server</string>
+    <string name="banner_offline_mode_whole">Režim offline · hrají jen stažené knihy</string>
+    <string name="banner_no_network_whole">Bez sítě · hrají jen stažené knihy</string>
+    <string name="not_on_device">Tato kniha není v tomto zařízení. Stáhněte ji, nebo vypněte režim offline.</string>
+    <string name="download_on_wifi_only">Stahovat jen přes Wi-Fi</string>
+    <string name="keep_at_most">Ponechat nejvýše</string>
+    <string name="no_limit">Bez omezení</string>
+    <string name="size_gb">%1$d GB</string>
+    <string name="whole_library_offline">Celá knihovna offline</string>
+    <string name="downloads_footer">Režim offline zobrazí a přehraje jen to, co je v tomto zařízení, stejně jako aplikace sama bez sítě. Po překročení limitu se nejdřív odeberou dokončené knihy, pak nejdéle nepřehrávané; nikdy ta, která právě hraje.\n\nS celou knihovnou se knihovna serveru own.audio ukazuje offline z kopie v tomto zařízení, nestažené knihy jsou zašedlé; přehrají se jen stažené.</string>
 </resources>

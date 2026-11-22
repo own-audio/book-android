@@ -154,7 +154,7 @@ class AudiobookshelfBookSource(
     }
 
     override suspend fun collections(): List<BookCollection> = translating {
-        client.collections(libraryId).map { BookCollection(it.id, Mojibake.repair(it.name), it.description, it.books.map(::book)) }
+        client.collections(libraryId).map { BookCollection(it.id, Mojibake.repair(it.name), HtmlText.plain(it.description), it.books.map(::book)) }
     }
 
     override suspend fun search(text: String): SearchResult = translating {
@@ -277,7 +277,7 @@ class AudiobookshelfBookSource(
         val chapters = item.media.chapters?.map { Chapter(Mojibake.repair(it.title), ms(it.start), ms(it.end)) }
         return Book(
             id = item.id, title = Mojibake.repair(m.title ?: UNTITLED), subtitle = Mojibake.repair(m.subtitle),
-            authors = authors, narrators = narrators, series = series, description = m.description,
+            authors = authors, narrators = narrators, series = series, description = HtmlText.plain(Mojibake.repair(m.description)),
             durationMs = ms(item.media.duration), addedAt = Instant.ofEpochMilli(item.addedAt),
             publishedYear = m.publishedYear, publisher = m.publisher, genres = m.genres, language = m.language,
             coverUrl = item.media.coverPath?.let { client.coverUrl(item.id, 600).toString() },

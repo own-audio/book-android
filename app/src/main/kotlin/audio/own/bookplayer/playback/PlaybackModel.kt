@@ -18,6 +18,7 @@ import audio.own.book.library.ResumeChoice
 import audio.own.book.library.SourceException
 import audio.own.bookplayer.R
 import audio.own.bookplayer.app.AppLog
+import audio.own.bookplayer.downloads.BookDownloads
 import audio.own.bookplayer.library.BookSources
 import audio.own.bookplayer.library.bookCoverRequest
 import audio.own.bookplayer.servers.ServersModel
@@ -75,6 +76,8 @@ class PlaybackModel(
     private val log: AppLog,
     filesDir: File,
     private val engineFactory: () -> PlaybackEngine,
+    /** The books on the phone: their files play first, and they play with no network. */
+    private val downloads: BookDownloads? = null,
 ) : PlaybackControls {
     private val main = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -151,7 +154,17 @@ class PlaybackModel(
     private var starting = false
     private var startJob: Job? = null
 
+    /** A file of the playing book arrived: it replaces the stream at the next pause or seek. */
+    private var localCopyWaiting = false
+
     init {
+        downloads?.onFileReady = { id ->
+            main.launch {
+                if (engineOrNull?.spoken?.bookId != id) return@launch
+                localCopyWaiting = true
+                if (engineOrNull?.spoken?.state?.value?.playWhenReady != true) useLocalCopies()
+            }
+        }
         // A network that came back gets a moment to settle before the queue goes out.
         main.launch {
             network.map { it.connected }.distinctUntilChanged().collectLatest { connected ->
@@ -199,12 +212,18 @@ class PlaybackModel(
         val last = lastBook ?: return
         startJob?.cancel()
         startJob = main.launch {
-            val source = sources.source(last.serverId) ?: return@launch fail(null)
-            val book = try {
-                source.book(last.bookId)
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                return@launch fail(e)
+            val composite = BookId.of(last.serverId, last.bookId).value
+            val kept = downloads?.record(composite)
+            val book = if (kept != null && (offline.isOffline || downloads?.downloadedBook(composite) != null)) {
+                kept
+            } else {
+                val source = sources.source(last.serverId) ?: return@launch fail(null)
+                try {
+                    source.book(last.bookId)
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    kept ?: return@launch fail(e)
+                }
             }
             start(last.serverId, book, atMs = null, mayAsk = true)
         }
@@ -216,22 +235,56 @@ class PlaybackModel(
 
     override fun seek(positionMs: Long) {
         engineOrNull?.spoken?.seek(positionMs)
+        afterSeek()
     }
 
     override fun skipBack() {
         engineOrNull?.spoken?.skipBack()
+        afterSeek()
     }
 
     override fun skipForward() {
         engineOrNull?.spoken?.skipForward()
+        afterSeek()
     }
 
     override fun nextChapter() {
         engineOrNull?.spoken?.nextChapter()
+        afterSeek()
     }
 
     override fun previousChapter() {
         engineOrNull?.spoken?.previousChapter()
+        afterSeek()
+    }
+
+    /** A seek breaks the sentence anyway: a file that arrived meanwhile is taken now. */
+    private fun afterSeek() {
+        if (localCopyWaiting) useLocalCopies()
+    }
+
+    /**
+     * Points every part of the playing book that is on the phone now at its file. The part
+     * playing is moved back to where it was, so nothing is heard twice or skipped.
+     */
+    private fun useLocalCopies() {
+        localCopyWaiting = false
+        val downloads = downloads ?: return
+        val spoken = engineOrNull?.spoken ?: return
+        val book = spoken.currentBook ?: return
+        val player = spoken.player
+        for (index in 0 until minOf(player.mediaItemCount, book.parts.size)) {
+            val part = book.parts[index]
+            if (part.isHls) continue
+            val local = downloads.localFile(book.id, part.id) ?: continue
+            val item = player.getMediaItemAt(index)
+            if (item.localConfiguration?.uri == local) continue
+            val current = index == player.currentMediaItemIndex
+            val at = player.currentPosition
+            player.replaceMediaItem(index, item.buildUpon().setUri(local).build())
+            if (current) player.seekTo(index, at)
+            log.info("playback", "part ${index + 1} of ${book.id} plays from the phone now")
+        }
     }
 
     override fun setSpeed(speed: Float) {
@@ -368,9 +421,20 @@ class PlaybackModel(
         connect()
         try {
             val source = sources.source(serverId) ?: throw IllegalStateException("no source for $serverId")
-            val full = if (book.files.isNullOrEmpty()) source.book(book.id) else book
+            val kept = downloads?.record(composite)
+            val local = downloads?.downloadedBook(composite)
+            if (kept != null) io.launch { downloads?.notePlayed(composite) }
+            val full = when {
+                // From the phone: the files as downloaded, the record as it was.
+                local != null -> local
+                offline.isOffline -> kept ?: book.takeIf { !it.files.isNullOrEmpty() } ?: throw NotOnDevice()
+                book.files.isNullOrEmpty() -> source.book(book.id)
+                else -> book
+            }
             val files = full.files.orEmpty()
             if (files.isEmpty()) throw IllegalStateException("${full.id} has no files")
+            // Offline, what is on the phone plays; a file that isn't waits for the network.
+            if (offline.isOffline && files.none { downloads?.localFile(composite, it.id) != null }) throw NotOnDevice()
             val start = atMs ?: when (val choice = resumeChoice(source, full, composite)) {
                 is ResumeChoice.Start -> choice.positionMs
                 is ResumeChoice.Ask -> if (mayAsk) {
@@ -385,14 +449,17 @@ class PlaybackModel(
             val net = network.value
             val saver = net.metered && prefs.mobileData == MobileData.SAVER
             val kbps = if (saver) PlaybackPrefs.SAVER_BITRATE_KBPS else null
-            val parts: List<SpokenPart> = if (source is AudiobookshelfBookSource) {
+            val parts: List<SpokenPart> = if (local == null && !offline.isOffline && source is AudiobookshelfBookSource) {
                 // The play session is what Audiobookshelf counts listening by; Saver makes it one HLS stream.
                 val plan = source.playPlan(full, kbps)
                 sessions[composite] = plan.sessionId
-                if (plan.parts.any { it.isHls }) plan.spokenParts() else files.map { placeholder(composite, it, null) }
+                if (plan.parts.any { it.isHls }) plan.spokenParts() else files.map { part(composite, it, null) }
             } else {
-                files.map { placeholder(composite, it, kbps) }
+                // No play session: an old one would be long closed; positions go as plain saves.
+                sessions.remove(composite)
+                files.map { part(composite, it, kbps) }
             }
+            localCopyWaiting = false
             this.serverId = serverId
             val spokenBook = SpokenBook(
                 id = composite, title = full.title, author = full.authorLine.ifBlank { null }, artworkUri = full.coverUrl,
@@ -414,6 +481,13 @@ class PlaybackModel(
         }
     }
 
+    /** A file on the phone plays from there; any other through a placeholder the resolver links. */
+    private fun part(composite: String, file: audio.own.book.library.BookFile, kbps: Int?): SpokenPart {
+        val local = downloads?.localFile(composite, file.id)
+            ?: return placeholder(composite, file, kbps)
+        return SpokenPart(id = file.id, uri = local.toString(), durationMs = file.durationMs, streamsByRange = true, contentType = file.contentType)
+    }
+
     private fun placeholder(composite: String, file: audio.own.book.library.BookFile, kbps: Int?) = SpokenPart(
         id = file.id,
         uri = PlaybackUris.forItem(composite, file.id, kbps).toString(),
@@ -432,8 +506,11 @@ class PlaybackModel(
         return ResumeChoice.decide(local, server)
     }
 
+    /** Offline, and none of the book is on the phone. */
+    class NotOnDevice : Exception("not on this device")
+
     private fun fail(error: Exception?) {
-        val message = context.getString(R.string.playback_failed)
+        val message = context.getString(if (error is NotOnDevice) R.string.not_on_device else R.string.playback_failed)
         if (error != null) log.error("playback", error.message ?: error.javaClass.simpleName)
         _state.update { it.copy(isLoading = false, isPlaying = false, error = message) }
     }
@@ -458,6 +535,10 @@ class PlaybackModel(
             }
         }
         main.launch { network.collect { net -> spoken.networkChanged(net.connected) } }
+        // A pause is a break in the sentence: a file that arrived while playing is taken now.
+        main.launch {
+            spoken.state.map { it.playWhenReady }.distinctUntilChanged().collect { playing -> if (!playing && localCopyWaiting) useLocalCopies() }
+        }
         main.launch {
             combine(spoken.state, settings.prefs) { s, prefs -> s to prefs }.collect { (s, prefs) -> publish(s, prefs) }
         }

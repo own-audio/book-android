@@ -19,7 +19,6 @@
         <item quantity="one">%1$d book</item>
         <item quantity="other">%1$d books</item>
     </plurals>
-    <string name="downloads_later">Downloaded books appear here, from every server.</string>
 
     <!-- Library -->
     <string name="series">Series</string>
@@ -176,4 +175,33 @@
     <string name="reset_progress_message">The position is forgotten on every device.</string>
     <string name="share_with_family">Share with the Family</string>
     <string name="keep_to_myself">Keep to Myself</string>
+    <!-- Downloads and offline (B6, B9). -->
+    <string name="downloads_empty_text">Download a book from its page, or a whole series, author or collection with the arrow on its list, to listen with no network.</string>
+    <string name="downloading">Downloading</string>
+    <string name="downloading_title">Downloading %1$s</string>
+    <string name="downloading_books">Downloading books</string>
+    <string name="downloading_percent">Downloading… %1$d%%</string>
+    <string name="downloading_percent_short">Downloading %1$d%%</string>
+    <string name="download_failed_retry">Download failed, try again</string>
+    <string name="download_server_did_not_send">The server did not send the file.</string>
+    <string name="download_all">Download All</string>
+    <string name="all_downloaded">All downloaded</string>
+    <plurals name="retry_failed">
+        <item quantity="one">Retry %1$d Failed</item>
+        <item quantity="other">Retry %1$d Failed</item>
+    </plurals>
+    <string name="remove_all_downloads">Remove All Downloads</string>
+    <string name="remove_all_downloads_question">Remove All Downloads?</string>
+    <string name="remove_all_downloads_message">They stay on the server and can be downloaded again.</string>
+    <string name="on_this_device_bytes">%1$s on this device.</string>
+    <string name="removed_server">Removed server</string>
+    <string name="banner_offline_mode_whole">Offline Mode · only downloaded books play</string>
+    <string name="banner_no_network_whole">No network · only downloaded books play</string>
+    <string name="not_on_device">This book is not on this device. Download it, or turn Offline Mode off.</string>
+    <string name="download_on_wifi_only">Download on Wi-Fi Only</string>
+    <string name="keep_at_most">Keep at Most</string>
+    <string name="no_limit">No Limit</string>
+    <string name="size_gb">%1$d GB</string>
+    <string name="whole_library_offline">Whole Library When Offline</string>
+    <string name="downloads_footer">Offline Mode shows and plays only what is on this device, as the app does on its own with no network. Over the limit, finished books go first, then the ones not played for longest; never the one playing.\n\nWith Whole Library, an own.audio server\'s whole library is listed offline from the copy on this device, with the books not downloaded grayed out; only downloaded books play.</string>
 </resources>

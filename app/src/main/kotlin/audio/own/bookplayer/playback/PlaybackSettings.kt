@@ -34,12 +34,23 @@ data class PlaybackPrefs(
     val lookAheadMinutes: Int = 10,
     /** By composite book id. */
     val bookSpeeds: Map<String, Float> = emptyMap(),
+    /** Download on Wi-Fi Only. */
+    val downloadsWifiOnly: Boolean = true,
+    /** Keep at Most, in GB; null is no limit. */
+    val keepAtMostGb: Int? = null,
+    /** Whole Library When Offline (own.audio). */
+    val wholeLibraryOffline: Boolean = false,
 ) {
     fun speedFor(bookId: String): Float = bookSpeeds[bookId] ?: defaultSpeed
+
+    val keepAtMostBytes: Long? get() = keepAtMostGb?.let { it.toLong() shl 30 }
 
     companion object {
         val SKIP_CHOICES = listOf(5, 10, 15, 30, 45, 60, 90)
         val LOOK_AHEAD_CHOICES = listOf(5, 10, 15)
+
+        /** Keep at Most: No Limit, then gigabytes. */
+        val KEEP_AT_MOST_CHOICES: List<Int?> = listOf(null, 1, 2, 5, 10)
 
         /** Under Data Saver the window is the smallest choice, whatever was picked. */
         const val CONSTRAINED_LOOK_AHEAD_MINUTES = 5
@@ -72,6 +83,9 @@ class DataStorePlaybackSettings(context: Context, scope: CoroutineScope) : Playb
             mobileData = p[MOBILE_DATA]?.let { v -> MobileData.entries.firstOrNull { it.name == v } } ?: MobileData.ORIGINAL,
             lookAheadMinutes = p[LOOK_AHEAD] ?: 10,
             bookSpeeds = p[BOOK_SPEEDS]?.let { runCatching { Json.decodeFromString(speedsSerializer, it) }.getOrNull() }.orEmpty(),
+            downloadsWifiOnly = p[WIFI_ONLY] ?: true,
+            keepAtMostGb = p[KEEP_AT_MOST]?.takeIf { it > 0 },
+            wholeLibraryOffline = p[WHOLE_LIBRARY] ?: false,
         )
     }.stateIn(scope, SharingStarted.Eagerly, PlaybackPrefs())
 
@@ -86,6 +100,9 @@ class DataStorePlaybackSettings(context: Context, scope: CoroutineScope) : Playb
             p[MOBILE_DATA] = next.mobileData.name
             p[LOOK_AHEAD] = next.lookAheadMinutes
             p[BOOK_SPEEDS] = Json.encodeToString(speedsSerializer, next.bookSpeeds)
+            p[WIFI_ONLY] = next.downloadsWifiOnly
+            p[KEEP_AT_MOST] = next.keepAtMostGb ?: 0
+            p[WHOLE_LIBRARY] = next.wholeLibraryOffline
         }
     }
 
@@ -97,6 +114,9 @@ class DataStorePlaybackSettings(context: Context, scope: CoroutineScope) : Playb
         val MOBILE_DATA = stringPreferencesKey("mobileData")
         val LOOK_AHEAD = intPreferencesKey("lookAheadMinutes")
         val BOOK_SPEEDS = stringPreferencesKey("bookRates")
+        val WIFI_ONLY = booleanPreferencesKey("downloads.wifiOnly")
+        val KEEP_AT_MOST = intPreferencesKey("downloads.keepAtMostGb")
+        val WHOLE_LIBRARY = booleanPreferencesKey("downloads.wholeLibrary")
     }
 }
 

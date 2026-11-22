@@ -70,6 +70,7 @@ private object Routes {
     const val LOGS = "logs"
     const val LICENCES = "licences"
     const val PLAYER = "player"
+    const val DOWNLOADS = "downloads"
 }
 
 /** The whole app: the theme with the chosen accent, the pages, and the two-factor step over them. */
@@ -126,6 +127,8 @@ private fun AppNavHost(container: AppContainer, nav: NavHostController) {
         composable(Routes.SETTINGS) {
             val context = LocalContext.current
             val playbackPrefs by container.playbackSettings.prefs.collectAsStateWithLifecycle()
+            val downloads by container.downloads.state.collectAsStateWithLifecycle()
+            val offlineMode by container.preferences.offlineMode.collectAsStateWithLifecycle(initialValue = false)
             SettingsContent(
                 ui = SettingsUi(
                     servers = servers.servers,
@@ -135,8 +138,13 @@ private fun AppNavHost(container: AppContainer, nav: NavHostController) {
                     version = "${container.versionName} (${container.versionCode})",
                     refused = servers.servers.map { it.id }.filter(servers::isRefused).toSet(),
                     playback = playbackPrefs,
+                    downloadedBytes = downloads.totalBytes,
+                    offlineMode = offlineMode,
+                    hasOwnAudio = servers.servers.any { it.kind == audio.own.bookplayer.servers.ServerKinds.OWN_AUDIO },
                 ),
                 onPlayback = { change -> scope.launch { container.playbackSettings.update(change) } },
+                onDownloads = { nav.navigate(Routes.DOWNLOADS) },
+                onOfflineMode = { on -> scope.launch { container.preferences.setOfflineMode(on) } },
                 onBack = back,
                 onOpenServer = { nav.navigate("server/$it") },
                 onRemoveServer = { id -> container.servers.scopeLaunch { container.servers.remove(id) } },
@@ -260,6 +268,21 @@ private fun AppNavHost(container: AppContainer, nav: NavHostController) {
             LogsContent(lines, onBack = back, onShare = { shareLog(context, container.log, container.logHeader) })
         }
         composable(Routes.LICENCES) { LicencesContent(onBack = back) }
+        composable(Routes.DOWNLOADS) {
+            val snapshot by container.downloads.state.collectAsStateWithLifecycle()
+            CompositionLocalProvider(audio.own.bookplayer.downloads.LocalBookDownloads provides snapshot) {
+                audio.own.bookplayer.downloads.DownloadsContent(
+                    snapshot = snapshot,
+                    servers = servers.servers,
+                    // Settings has no book pages under it: a tap plays the book.
+                    onOpen = { entry -> container.playback.play(entry.serverId, entry.book); nav.navigate(Routes.PLAYER) },
+                    onRemove = { entry -> container.scope.launch { container.downloads.remove(entry.compositeId) } },
+                    onRetryFailed = { container.scope.launch { container.downloads.retryFailed() } },
+                    onRemoveAll = { container.scope.launch { container.downloads.removeAll() } },
+                    onBack = back,
+                )
+            }
+        }
     }
 }
 

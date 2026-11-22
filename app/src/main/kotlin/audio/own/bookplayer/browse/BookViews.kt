@@ -41,6 +41,9 @@ import audio.own.book.library.Visibility
 import audio.own.bookplayer.R
 import audio.own.bookplayer.app.UiText
 import audio.own.bookplayer.app.UserFacingException
+import audio.own.bookplayer.downloads.DownloadBadge
+import audio.own.bookplayer.downloads.DownloadState
+import audio.own.bookplayer.downloads.LocalBookDownloads
 import audio.own.bookplayer.library.rememberBookCover
 import audio.own.core.designsystem.components.CoverArt
 import audio.own.core.designsystem.components.FamilyBadge
@@ -85,13 +88,17 @@ fun BookCard(
     val palette = LocalPalette.current
     val fraction = progressFraction(book, progress)
     val label = listOf(book.title, book.authorLine).filter { it.isNotBlank() }.joinToString(", ")
+    val download = LocalBookDownloads.current.state(serverId, book.id)
+    // Offline, a book on the phone still plays: only the others are greyed.
+    val dim = dimmed && download != DownloadState.Downloaded
     Column(
-        modifier.width(width).alpha(if (dimmed) 0.45f else 1f).clearAndSetSemantics { contentDescription = label },
+        modifier.width(width).alpha(if (dim) 0.45f else 1f).clearAndSetSemantics { contentDescription = label },
         verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.sm),
     ) {
         Box {
             BookCover(serverId, book, width)
             if (book.visibility == Visibility.FAMILY) FamilyBadge(Modifier.align(Alignment.TopEnd).padding(6.dp))
+            DownloadBadge(download, Modifier.align(Alignment.BottomEnd).padding(6.dp))
             if (isFavourite) {
                 Icon(Icons.Filled.Favorite, null, tint = palette.accent, modifier = Modifier.align(Alignment.TopStart).padding(6.dp).size(14.dp))
             }
@@ -142,8 +149,10 @@ fun BookRow(
     leading: String? = null,
 ) {
     val palette = LocalPalette.current
+    val download = LocalBookDownloads.current.state(serverId, book.id)
+    val dim = dimmed && download != DownloadState.Downloaded
     Row(
-        modifier.fillMaxWidth().heightIn(min = 72.dp).alpha(if (dimmed) 0.45f else 1f).padding(horizontal = Tokens.Spacing.screenEdge, vertical = Tokens.Spacing.sm),
+        modifier.fillMaxWidth().heightIn(min = 72.dp).alpha(if (dim) 0.45f else 1f).padding(horizontal = Tokens.Spacing.screenEdge, vertical = Tokens.Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Tokens.Spacing.md),
     ) {
@@ -158,7 +167,7 @@ fun BookRow(
             }
             Text(progressSummary(book, progress), style = MaterialTheme.typography.bodySmall.tabular(), color = palette.muted)
         }
-        if (nowPlaying) NowPlayingIndicator(isPlaying)
+        if (nowPlaying) NowPlayingIndicator(isPlaying) else DownloadBadge(download)
     }
 }
 
@@ -234,7 +243,5 @@ fun Throwable.sourceMessage(): UiText = when (this) {
 }
 
 /** Descriptions arrive as HTML from some servers. */
-fun String.strippingHtml(): String {
-    if (!contains('<') && !contains('&')) return trim()
-    return androidx.core.text.HtmlCompat.fromHtml(this, androidx.core.text.HtmlCompat.FROM_HTML_MODE_COMPACT).toString().trim()
-}
+fun String.strippingHtml(): String = audio.own.book.library.HtmlText.plain(this).orEmpty()
+

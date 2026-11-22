@@ -49,12 +49,14 @@ class MainActivity : AppCompatActivity() {
         super.onStart()
         // Sends what is queued, and brings the catalogue and other devices' positions up to date.
         container.playbackModel.setForeground(true)
+        container.sync.liveUpdates.setForeground(true)
     }
 
     override fun onStop() {
         // Going to the background saves the position at once.
         container.playbackModel.saveNow()
         container.playbackModel.setForeground(false)
+        container.sync.liveUpdates.setForeground(false)
         super.onStop()
     }
 

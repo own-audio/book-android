@@ -23,17 +23,17 @@ are described there once for all three Android apps. The foundation is built in
 | B3 | Spoken engine (`:player:spoken`) | ☑ 2026-11-21: the Media3 player (one timeline over the files, speed without pitch change, chapters as next/previous, look-ahead with "N min saved", held through signal gaps) |
 | B4 | Screens: Home, Library, book, people, series, collections, search, player | ◐ built 2026-11-21; a 12-file demo book and an Audiobookshelf book played on the emulator (speed, chapters and skips from the notification, position saved before sending and sent after a kill). Open: guide pages, cover refetch with a fresh link |
 | B5 | Welcome, sign-in, server page (Books specifics) | ◐ built 2026-11-21, tried on the demo and an Audiobookshelf server; "Library on This Device" comes with the catalogue sync (B6) |
-| B6 | Downloads, offline, set downloads, eviction | ☐ |
+| B6 | Downloads, offline, set downloads, eviction | ◐ built 2026-11-22: an Audiobookshelf book downloaded, resumed after a kill, played with no network; the demo case waits for a fresh demo sign-in |
 | B7 | Positions: pending progress, resume choice, "Continue from another device?" | ☑ 2026-11-21 (the dialog seen with a position written from a second device; batches through `/sync/push`) |
 | B8 | Bookmarks, favourites, finished/reset, sharing with the family | ◐ built 2026-11-21; bookmarks and reset tried on Audiobookshelf, finished/not finished on the demo; favourites unit-tested only (the demo account is read-only) |
-| B9 | Settings | ☐ |
+| B9 | Settings | ☑ 2026-11-22 (account skip intervals and speed saved to /me/settings) |
 | B10 | Import from this device (own.audio uploads) | ☐ |
 | B11 | Narrate an ebook (hosted own.audio) | ☐ |
 | B12 | Android Auto, widget, deep links, voice, background refresh | ☐ |
 | B13 | Localization, accessibility, tablets, misuse tests | ☐ |
 | B14 | Release | ☐ |
 
-**Where we stopped:** B7 and B8 built 2026-11-21. Next: B6 downloads (`:core:downloads` and `:core:sync` are already copied from music-android), the rest of B9 settings, then B10 import and B11 narration. Known: Audiobookshelf descriptions show HTML entities (`&amp;`).
+**Where we stopped:** B6 and B9 built 2026-11-22. Next: B10 import, B11 narration, B12 Android Auto/widget/voice, B13 polish, guide pages.
 
 ## Rules for whoever executes this plan
 

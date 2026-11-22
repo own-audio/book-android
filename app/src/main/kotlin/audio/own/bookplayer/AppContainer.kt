@@ -28,6 +28,15 @@ import audio.own.bookplayer.playback.PlaybackSettings
 import audio.own.bookplayer.servers.ServerDetector
 import audio.own.bookplayer.servers.ServerIcons
 import audio.own.bookplayer.servers.ServersModel
+import audio.own.book.library.BookSource
+import audio.own.book.library.OfflineBookSource
+import audio.own.bookplayer.downloads.BookDownloads
+import audio.own.bookplayer.playback.AccountPlaybackSettings
+import audio.own.bookplayer.sync.AppSync
+import audio.own.player.core.ProxyMemory
+import androidx.work.DelegatingWorkerFactory
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -58,6 +67,16 @@ class AppContainer(context: Context) {
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .addInterceptor(LoggingInterceptor(log))
+        .build()
+
+    /**
+     * For download links and storage redirects: no Authorization header and no request log, so
+     * neither a token nor a signed link leaves through it (docs/android-foundation.md §7.2).
+     */
+    val bareHttp: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .followSslRedirects(true)
         .build()
 
     val preferences: AppPreferences = DataStorePreferences(app)
@@ -94,7 +113,13 @@ class AppContainer(context: Context) {
         acceptLanguage = { appLocale().toLanguageTag() },
         log = log,
         scope = scope,
-        onRemoved = { serverIcons.remove(it); sources.forget(it); playbackModel.outbox.forgetServer(it) },
+        onRemoved = { id ->
+            serverIcons.remove(id)
+            sources.forget(id)
+            playbackModel.outbox.forgetServer(id)
+            // A removed server's downloads leave the device with it.
+            scope.launch { downloads.removeAll(id) }
+        },
     )
 
     val sources: BookSources = BookSources(app, servers, log, scope, versionName)
@@ -104,6 +129,28 @@ class AppContainer(context: Context) {
     val covers = audio.own.bookplayer.library.CoverRefresher({ sources.source(it) }, scope)
 
     private val linkResolver = BookLinkResolver(sources)
+
+    val downloads: BookDownloads = BookDownloads.create(
+        context = app,
+        bareHttp = bareHttp,
+        userAgent = userAgent,
+        proxyMemory = ProxyMemory(),
+        sourceOf = { sources.source(it) },
+        serversLoaded = { servers.state.first { it.loaded } },
+        prefs = playbackSettings.prefs,
+        playing = { playbackModel.state.value.bookId },
+        isFinished = { playbackModel.outbox.local(it)?.finished == true },
+        log = log,
+        scope = scope,
+    )
+
+    /** The screens' library of a server: the downloads alone while offline, unless Whole Library is on. */
+    fun screenSource(source: BookSource): BookSource = OfflineBookSource(
+        inner = source,
+        downloaded = { downloads.state.value.downloadedBooks(source.serverId) },
+        isOffline = { offline.isOffline },
+        wholeLibrary = { playbackSettings.prefs.value.wholeLibraryOffline },
+    )
 
     val playbackModel: PlaybackModel = PlaybackModel(
         context = app,
@@ -115,7 +162,18 @@ class AppContainer(context: Context) {
         log = log,
         filesDir = app.filesDir,
         engineFactory = { PlaybackEngine(app, linkResolver, http, userAgent, { network.state.value.connected }, kotlinx.coroutines.MainScope()) },
+        downloads = downloads,
     )
+
+    val sync = AppSync(servers, sources, { playbackModel }, { offline.isOffline }, network.state, log, scope)
+
+    val accountSettings = AccountPlaybackSettings(servers, playbackSettings, { offline.isOffline }, log, scope)
+
+    /** WorkManager's workers, with their dependencies: downloads and the periodic refresh. */
+    val workerFactory = DelegatingWorkerFactory().apply {
+        addFactory(BookDownloads.workerFactory { downloads })
+        addFactory(sync.refreshWorkerFactory)
+    }
 
     /** What the screens play through. */
     val playback: PlaybackControls = playbackModel

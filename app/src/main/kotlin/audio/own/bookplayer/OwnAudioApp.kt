@@ -1,7 +1,9 @@
 package audio.own.bookplayer
 
 import android.app.Application
-import audio.own.bookplayer.playback.ProgressFlushWorker
+import androidx.work.Configuration
+import androidx.work.WorkManager
+import audio.own.core.sync.PeriodicRefresh
 import audio.own.bookplayer.servers.ConnectionState
 import coil3.ImageLoader
 import coil3.PlatformContext
@@ -10,7 +12,7 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
-class OwnAudioApp : Application(), SingletonImageLoader.Factory {
+class OwnAudioApp : Application(), SingletonImageLoader.Factory, Configuration.Provider {
     lateinit var container: AppContainer
         private set
 
@@ -31,11 +33,32 @@ class OwnAudioApp : Application(), SingletonImageLoader.Factory {
         container.scope.launch {
             combine(container.network.state, container.preferences.offlineMode, container.playbackSettings.prefs) { network, offlineMode, prefs ->
                 Triple(network, offlineMode, prefs.mobileData)
-            }.collect { (network, offlineMode, mobileData) -> container.offline.update(offlineMode, network, mobileData) }
+            }.collect { (network, offlineMode, mobileData) ->
+                container.offline.update(offlineMode, network, mobileData)
+                // Offline Mode, Downloaded Only on mobile data, or no network: live updates stop or start.
+                container.sync.liveUpdates.refresh()
+            }
         }
         // Positions saved while the app was away go out now, and every hour or so in the background.
         container.playbackModel.flush()
-        ProgressFlushWorker.schedule(this)
+        // What the index doesn't know goes; what waited (killed mid-download) starts again.
+        container.scope.launch { container.downloads.reconcile() }
+        container.downloads.start()
+        container.sync.start()
+        container.accountSettings.start()
+        runCatching {
+            val work = WorkManager.getInstance(this)
+            // The hourly job used to flush positions only; the refresh does that and the catalogues.
+            work.cancelUniqueWork(OLD_PROGRESS_FLUSH)
+            PeriodicRefresh.schedule(work)
+        }
+    }
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().setWorkerFactory(container.workerFactory).build()
+
+    private companion object {
+        const val OLD_PROGRESS_FLUSH = "progress-flush"
     }
 
     /** Covers through the app's client (no Authorization header), cached by record rather than by URL. */

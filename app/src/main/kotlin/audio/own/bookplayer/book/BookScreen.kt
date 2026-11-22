@@ -406,14 +406,21 @@ private fun BookBody(
                 Text(progressSummary(book, state.progress), style = MaterialTheme.typography.bodySmall.tabular(), color = palette.muted)
             }
         }
-        PlayCapsule(
-            book = book,
-            progress = state.progress,
-            isThis = isThis,
-            playback = playback,
-            onClick = { if (isThis) onToggle() else onPlay(book) },
-            modifier = Modifier.padding(horizontal = Tokens.Spacing.screenEdge),
-        )
+        Row(
+            Modifier.padding(horizontal = Tokens.Spacing.screenEdge),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Tokens.Spacing.sm),
+        ) {
+            PlayCapsule(
+                book = book,
+                progress = state.progress,
+                isThis = isThis,
+                playback = playback,
+                onClick = { if (isThis) onToggle() else onPlay(book) },
+                modifier = Modifier.weight(1f),
+            )
+            audio.own.bookplayer.downloads.DownloadButton(serverId, book)
+        }
         book.description?.strippingHtml()?.takeIf { it.isNotBlank() }?.let { Description(it) }
         Details(book)
         var tab by rememberSaveable { mutableStateOf(BookTab.CHAPTERS) }

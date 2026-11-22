@@ -95,7 +95,7 @@ class ScreenshotTest {
 
     @Composable
     private fun Settings() = SettingsContent(
-        ui = SettingsUi(listOf(home, shelf, demo), activeId = "s1", accent = AccentChoice.APP, language = AppLanguage.SYSTEM, version = "1.0.0 (123)", refused = setOf("s3")),
+        ui = SettingsUi(listOf(home, shelf, demo), activeId = "s1", accent = AccentChoice.APP, language = AppLanguage.SYSTEM, version = "1.0.0 (123)", refused = setOf("s3"), downloadedBytes = 1_234_000_000, hasOwnAudio = true),
         onBack = {}, onOpenServer = {}, onRemoveServer = {}, onAddServer = {}, onAccent = {}, onLanguage = {}, onLicences = {}, onLogs = {},
     )
 

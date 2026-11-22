@@ -56,7 +56,7 @@ class ScreenViewModelsTest {
 
     @Test
     fun homeDropsEmptyShelvesAndKnowsProgressAndFavourites() = runBlocking {
-        val vm = HomeViewModel(source) { false }
+        val vm = HomeViewModel(source)
         eventually { vm.state.value.shelves is Load.Loaded }
         assertEquals(listOf("continue-listening", "recently-added"), vm.state.value.shelves.value().map { it.id })
         assertTrue("b1" in vm.state.value.progress)
@@ -65,14 +65,14 @@ class ScreenViewModelsTest {
 
     @Test
     fun homeOfflineShowsNothingFromTheServer() = runBlocking {
-        val vm = HomeViewModel(source) { true }
+        val vm = HomeViewModel(audio.own.book.library.OfflineBookSource(source, { emptyList() }, { true }))
         eventually { vm.state.value.shelves is Load.Loaded }
         assertTrue(vm.state.value.shelves.value().isEmpty())
     }
 
     @Test
     fun aQuietReloadKeepsTheShelvesWhenItFailsALoudOneSaysSo() = runBlocking {
-        val vm = HomeViewModel(source) { false }
+        val vm = HomeViewModel(source)
         eventually { vm.state.value.shelves is Load.Loaded }
         source.fail = SourceException.Network
         vm.reload(quietly = true)
