@@ -35,10 +35,14 @@ import java.util.Collections
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -186,6 +190,18 @@ class PlaybackMisuseTest {
         ready()
         assertEquals(BOOK.files!!.size, exo.mediaItemCount)
         assertStillPlays()
+    }
+
+    @Test
+    fun `a pause's position reaching the server tells the screens to read again`() = runBlocking {
+        startPlaying(at = 5_000)
+        val changed = CompletableDeferred<Unit>()
+        val watcher = launch(Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) { model.progressChanged.first(); changed.complete(Unit) }
+        val sentBefore = source.reports.size
+        model.pause()
+        until("the pause sent") { source.reports.size > sentBefore }
+        until("the screens told") { changed.isCompleted }
+        watcher.cancel()
     }
 
     @Test

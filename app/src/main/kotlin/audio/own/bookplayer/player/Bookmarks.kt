@@ -70,7 +70,13 @@ data class BookmarksState(
  * label, renamed, deleted. Online only, as on iOS; a change shows at once and is put back if
  * the server refuses it.
  */
-class BookmarksViewModel(private val source: BookSource?, private val bookId: String?, private val isOffline: () -> Boolean) : ViewModel() {
+class BookmarksViewModel(
+    private val source: BookSource?,
+    private val bookId: String?,
+    /** After a change the server took: the book's page, if open, reads the bookmarks again. */
+    private val onChanged: (bookId: String) -> Unit = {},
+    private val isOffline: () -> Boolean,
+) : ViewModel() {
     private val _state = MutableStateFlow(BookmarksState())
     val state: StateFlow<BookmarksState> = _state.asStateFlow()
 
@@ -109,6 +115,7 @@ class BookmarksViewModel(private val source: BookSource?, private val bookId: St
         viewModelScope.launch {
             try {
                 work()
+                onChanged(bookId)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

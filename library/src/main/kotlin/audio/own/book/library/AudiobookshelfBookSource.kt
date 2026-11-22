@@ -192,11 +192,11 @@ class AudiobookshelfBookSource(
     }
 
     override suspend fun addBookmark(bookId: String, positionMs: Long, label: String?): Bookmark = translating {
-        bookmark(client.createBookmark(bookId, seconds(positionMs), label ?: ""))
+        bookmark(client.createBookmark(bookId, seconds(positionMs), title(positionMs, label)))
     }
 
     override suspend fun renameBookmark(bookmark: Bookmark, label: String?): Bookmark = translating {
-        bookmark(client.updateBookmark(bookmark.bookId, seconds(bookmark.positionMs), label ?: ""))
+        bookmark(client.updateBookmark(bookmark.bookId, seconds(bookmark.positionMs), title(bookmark.positionMs, label)))
     }
 
     override suspend fun deleteBookmark(bookmark: Bookmark) = translating {
@@ -272,7 +272,7 @@ class AudiobookshelfBookSource(
         val m = item.media.metadata
         val authors = m.authors?.map(::person) ?: names(m.authorName).map { Person(it, Mojibake.repair(it)) }
         val narrators = (m.narrators ?: names(m.narratorName)).map { Person(it, Mojibake.repair(it)) }
-        val series = m.series?.map { SeriesRef(it.id, Mojibake.repair(it.name), it.sequence) } ?: seriesRefs(m.seriesName)
+        val series = m.series?.map { SeriesRef(it.id, Mojibake.repair(it.name), it.sequence?.takeIf(String::isNotBlank)) } ?: seriesRefs(m.seriesName)
         val files = item.media.tracks?.map { BookFile(fileId(it), Mojibake.repair(it.title), ms(it.duration), ms(it.startOffset), null, it.mimeType) }
         val chapters = item.media.chapters?.map { Chapter(Mojibake.repair(it.title), ms(it.start), ms(it.end)) }
         return Book(
@@ -305,8 +305,25 @@ class AudiobookshelfBookSource(
 
         fun bookmark(b: AbsBookmark) = Bookmark(
             id = timeKey(b.time), bookId = b.libraryItemId, positionMs = ms(b.time),
-            label = b.title.ifEmpty { null }?.let { Mojibake.repair(it) }, createdAt = Instant.ofEpochMilli(b.createdAt),
+            label = b.title.takeUnless { it.isBlank() || it == clock(ms(b.time)) }?.let { Mojibake.repair(it) },
+            createdAt = Instant.ofEpochMilli(b.createdAt),
         )
+
+        /**
+         * Audiobookshelf refuses a bookmark without a title (400 "Invalid title"), so one without
+         * a label is saved under its time, as Audiobookshelf's own apps show it; [bookmark] reads
+         * that back as no label.
+         */
+        fun title(positionMs: Long, label: String?): String = label?.trim()?.takeIf { it.isNotEmpty() } ?: clock(positionMs)
+
+        /** "42:27", "1:02:07". */
+        fun clock(ms: Long): String {
+            val total = ms.coerceAtLeast(0) / 1000
+            val h = total / 3600
+            val m = total % 3600 / 60
+            val s = total % 60
+            return if (h > 0) String.format(java.util.Locale.ROOT, "%d:%02d:%02d", h, m, s) else String.format(java.util.Locale.ROOT, "%d:%02d", m, s)
+        }
 
         /** A bookmark's id is its time in seconds, as the server matches it. */
         fun timeKey(seconds: Double): String =
@@ -327,7 +344,7 @@ class AudiobookshelfBookSource(
             val hash = text.lastIndexOf(" #")
             if (hash >= 0) {
                 val name = text.substring(0, hash)
-                SeriesRef(name, Mojibake.repair(name), text.substring(hash + 2))
+                SeriesRef(name, Mojibake.repair(name), text.substring(hash + 2).takeIf(String::isNotBlank))
             } else {
                 SeriesRef(text, Mojibake.repair(text), null)
             }

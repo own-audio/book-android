@@ -82,6 +82,26 @@ class AudiobookshelfBookSourceTest {
     }
 
     @Test
+    fun `a series without a number has no sequence, not an empty one`() {
+        val detail = item(
+            """{"id":"li2","libraryId":"lib1","addedAt":1,"updatedAt":1,"isMissing":false,"isInvalid":false,"mediaType":"book","media":{"metadata":{"title":"Jeeves","authors":[],"narrators":[],"series":[{"id":"s1","name":"Jeeves","sequence":""}],"genres":[],"explicit":false,"abridged":false},"coverPath":null,"tags":[],"duration":1}}""",
+        )
+        assertNull(source.book(detail).series.single().sequence)
+        val row = AudiobookshelfBookSource.seriesRefs("Jeeves #, Metro #2")
+        assertEquals(listOf(null, "2"), row.map { it.sequence })
+        assertEquals(listOf("Jeeves", "Metro"), row.map { it.name })
+    }
+
+    @Test
+    fun `a bookmark without a label is saved under its time, which reads back as no label`() {
+        assertEquals("42:27", AudiobookshelfBookSource.title(2_547_859, null))
+        assertEquals("1:02:07", AudiobookshelfBookSource.title(3_727_000, "  "))
+        assertEquals("here", AudiobookshelfBookSource.title(3_727_000, " here "))
+        assertNull(AudiobookshelfBookSource.bookmark(AbsBookmark("li1", 2547.859, "42:27", 1)).label)
+        assertEquals("Chapter 3", AudiobookshelfBookSource.bookmark(AbsBookmark("li1", 2547.859, "Chapter 3", 1)).label)
+    }
+
+    @Test
     fun `errors become the screens' errors`() {
         assertEquals(SourceException.SignInRejected, AudiobookshelfBookSource.sourceError(AudiobookshelfError.InvalidCredentials))
         assertEquals(SourceException.NotAllowed, AudiobookshelfBookSource.sourceError(AudiobookshelfError.Http(403, null)))
@@ -207,8 +227,11 @@ class AudiobookshelfBookSourceTest {
                     text("OK")
                 }
                 "POST" to "/api/me/item/li1/bookmark" -> {
-                    assertEquals(33.0, request.bodyJson()["time"]!!.jsonPrimitive.double, 0.0)
-                    json("""{"libraryItemId":"li1","time":33,"title":"here","createdAt":1}""")
+                    val body = request.bodyJson()
+                    assertEquals(33.0, body["time"]!!.jsonPrimitive.double, 0.0)
+                    // Audiobookshelf answers 400 "Invalid title" to an empty one.
+                    val title = body["title"]!!.jsonPrimitive.content
+                    if (title.isEmpty()) text("Invalid title", 400) else json("""{"libraryItemId":"li1","time":33,"title":"$title","createdAt":1}""")
                 }
                 "DELETE" to "/api/me/item/li1/bookmark/33" -> text("OK")
                 else -> text("Not Found", 404)
@@ -220,6 +243,7 @@ class AudiobookshelfBookSourceTest {
             val bookmark = abs.addBookmark("li1", 33_000, "here")
             assertEquals("33", bookmark.id)
             assertEquals("here", bookmark.label)
+            assertNull(abs.addBookmark("li1", 33_000, null).label)
             abs.deleteBookmark(bookmark)
             try {
                 abs.setFavourite("li1", true)

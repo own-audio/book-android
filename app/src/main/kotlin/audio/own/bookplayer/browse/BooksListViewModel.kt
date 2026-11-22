@@ -50,6 +50,19 @@ class BooksListViewModel(
 
     val capabilities: Set<Capability> get() = source?.capabilities.orEmpty()
 
+    private var listing: Any? = null
+
+    /**
+     * True when the list was loaded for another [now] (online, the downloads, or offline the whole
+     * catalogue) and has to load again. Kept here, not on the screen: the screen is gone while
+     * Settings is open, where Offline Mode and Whole Library are switched.
+     */
+    fun seesListing(now: Any): Boolean {
+        val changed = listing != null && listing != now
+        listing = now
+        return changed
+    }
+
     init {
         reload()
     }

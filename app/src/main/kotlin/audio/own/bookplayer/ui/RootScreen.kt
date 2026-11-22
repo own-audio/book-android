@@ -1,5 +1,9 @@
 package audio.own.bookplayer.ui
 
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.sp
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.heading
 import android.app.Activity
@@ -107,7 +111,7 @@ fun TabsScreen(
                     selected = item == tab,
                     onClick = { if (onSelect != null) onSelect(item) else own = item },
                     icon = { Icon(item.icon, contentDescription = null) },
-                    label = { Text(stringResource(item.title)) },
+                    label = { TabLabel(stringResource(item.title)) },
                 )
             }
         },
@@ -188,4 +192,19 @@ fun Context.findActivity(): Activity? {
         context = context.baseContext
     }
     return null
+}
+
+/**
+ * A tab's name on one line: at large font sizes "Downloads" shrinks to fit its tab instead of
+ * breaking mid-word ("Downlo / ads").
+ */
+@Composable
+internal fun TabLabel(text: String) {
+    val size = LocalTextStyle.current.fontSize
+    Text(
+        text,
+        maxLines = 1,
+        autoSize = if (size.isSp) TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = size, stepSize = 0.5.sp) else null,
+        modifier = Modifier.testTag("tab.label"),
+    )
 }

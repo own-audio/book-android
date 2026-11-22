@@ -58,7 +58,9 @@ import audio.own.bookplayer.imports.ImportWorker
 import audio.own.bookplayer.imports.WorkManagerImportScheduler
 import audio.own.bookplayer.narration.BookNarrations
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Locale
@@ -253,6 +255,15 @@ class AppContainer(context: Context) {
     val sync = AppSync(servers, sources, { playbackModel }, { offline.isOffline }, network.state, log, scope, refreshWidget = { widget.refresh() })
 
     val accountSettings = AccountPlaybackSettings(servers, playbackSettings, { offline.isOffline }, log, scope)
+
+    /**
+     * How many times each book's bookmarks changed in the player. A count rather than an event:
+     * the book's page is not composed while the player covers it, and reads them again when it
+     * comes back and sees a newer count.
+     */
+    val bookmarkEdits = MutableStateFlow<Map<String, Int>>(emptyMap())
+
+    fun noteBookmarksChanged(bookId: String) = bookmarkEdits.update { it + (bookId to (it[bookId] ?: 0) + 1) }
 
     /** A server's library grew (an import or a narration finished) and its catalogue caught up: lists read again. */
     val libraryGrew = MutableSharedFlow<String>(extraBufferCapacity = 4)

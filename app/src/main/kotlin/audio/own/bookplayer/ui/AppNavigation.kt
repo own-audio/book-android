@@ -445,7 +445,7 @@ private fun PlayerRoute(container: AppContainer, onClose: () -> Unit) {
     val serverId = state.serverId
     val bookId = state.bookId?.let { audio.own.book.library.BookId(it).bookId }
     val bookmarksVm = viewModel(key = "bookmarks|${state.bookId}") {
-        audio.own.bookplayer.player.BookmarksViewModel(serverId?.let { container.sources.source(it) }, bookId) { container.offline.isOffline }
+        audio.own.bookplayer.player.BookmarksViewModel(serverId?.let { container.sources.source(it) }, bookId, onChanged = container::noteBookmarksChanged) { container.offline.isOffline }
     }
     val bookmarks by bookmarksVm.state.collectAsStateWithLifecycle()
     PlayerContent(

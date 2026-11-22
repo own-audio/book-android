@@ -85,6 +85,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import audio.own.bookplayer.R
 import audio.own.bookplayer.browse.BookSymbol
@@ -104,6 +105,19 @@ import audio.own.player.spoken.SpeedText
 import audio.own.core.strings.R as SR
 
 private val SIDE_BY_SIDE_MIN_WIDTH = 840.dp
+
+private val COVER_SIZE = 260.dp
+private val COVER_MIN_SIZE = 160.dp
+
+/** What the portrait player needs below the cover at the standard font size: titles, both bars, transport and tools. */
+private val CONTROLS_HEIGHT = 580.dp
+
+/**
+ * The cover gives way on a phone whose screen is shorter than the 260 dp cover and the controls
+ * need together, so the tools row stays on screen instead of under the gesture bar; below
+ * 160 dp the page scrolls (large fonts).
+ */
+internal fun portraitCoverSize(height: Dp): Dp = (height - CONTROLS_HEIGHT).coerceIn(COVER_MIN_SIZE, COVER_SIZE)
 private const val LARGE_TEXT_SCALE = 1.5f
 
 /** Which sheet of the player is up. */
@@ -176,6 +190,7 @@ fun PlayerContent(
         val openSheet: (PlayerSheet) -> Unit = { sheet = it; if (it == PlayerSheet.BOOKMARKS) onLoadBookmarks() }
         LaunchedEffect(Unit) { if (initialSheet == PlayerSheet.BOOKMARKS) onLoadBookmarks() }
         BoxWithConstraints(Modifier.fillMaxSize().padding(inner)) {
+            val coverSize = portraitCoverSize(maxHeight)
             // A tablet on its side: the cover beside the controls, so neither needs scrolling.
             if (maxWidth >= SIDE_BY_SIDE_MIN_WIDTH && maxWidth > maxHeight) {
                 Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
@@ -203,7 +218,7 @@ fun PlayerContent(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.xl),
                 ) {
-                    Cover(state)
+                    Cover(state, coverSize)
                     Titles(state, onChapters = { sheet = PlayerSheet.CHAPTERS })
                     Scrubbers(state, actions.onSeek)
                     Transport(state, actions)
@@ -227,10 +242,10 @@ fun PlayerContent(
 }
 
 @Composable
-private fun Cover(state: PlaybackUi) {
+private fun Cover(state: PlaybackUi, size: Dp = COVER_SIZE) {
     val palette = LocalPalette.current
     Box(Modifier.padding(top = Tokens.Spacing.lg)) {
-        CoverArt(state.cover, 260.dp, BookSymbol)
+        CoverArt(state.cover, size, BookSymbol)
         val badge = sleepText(state.sleep)
         if (badge != null) {
             Row(

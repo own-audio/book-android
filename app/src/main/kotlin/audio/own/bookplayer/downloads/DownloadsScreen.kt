@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -152,8 +153,12 @@ fun DownloadsContent(
         groups.forEach { (header, group) ->
             Section(header = header) {
                 group.forEachIndexed { index, entry ->
-                    if (index > 0) RowDivider(start = 84.dp)
-                    DownloadRow(entry, names[entry.serverId] ?: stringResource(R.string.removed_server), onOpen = { onOpen(entry) }, onRemove = { onRemove(entry) })
+                    // Keyed by book: a row's swipe belongs to its book, not to its place in the
+                    // list, or the book moving up after a removal would arrive swiped away.
+                    key(entry.serverId, entry.book.id) {
+                        if (index > 0) RowDivider(start = 84.dp)
+                        DownloadRow(entry, names[entry.serverId] ?: stringResource(R.string.removed_server), onOpen = { onOpen(entry) }, onRemove = { onRemove(entry) })
+                    }
                 }
             }
         }

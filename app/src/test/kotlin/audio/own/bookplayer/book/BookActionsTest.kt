@@ -81,6 +81,32 @@ class BookActionsTest {
     }
 
     @Test
+    fun aBookmarkChangedInThePlayerTellsTheBookPage() = runBlocking {
+        val source = FakeBookSource()
+        val told = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val vm = BookmarksViewModel(source, "b1", onChanged = { told += it }) { false }
+        vm.load()
+        eventually { vm.state.value.bookmarks?.size == 1 }
+        vm.add(120_000, "")
+        eventually { told.size == 1 }
+        vm.delete(vm.state.value.bookmarks!!.first())
+        eventually { told.size == 2 }
+        assertEquals(listOf("b1", "b1"), told.toList())
+        source.failChanges = SourceException.Network
+        vm.delete(vm.state.value.bookmarks!!.first())
+        eventually { vm.state.value.error != null }
+        assertEquals("a refused change tells nobody", 2, told.size)
+    }
+
+    @Test
+    fun theBookPageReadsTheBookmarksAgainWhenThePlayerChangedThemMeanwhile() = runBlocking {
+        val vm = BookViewModel(FakeBookSource(), "b1")
+        assertFalse("the first count seen is where the page starts", vm.seesBookmarkEdit(2))
+        assertFalse("the same count: nothing new", vm.seesBookmarkEdit(2))
+        assertTrue("a newer count, seen when the page comes back from the player", vm.seesBookmarkEdit(3))
+    }
+
+    @Test
     fun aDeleteTheServerRefusesIsPutBack() = runBlocking {
         val source = FakeBookSource()
         val vm = BookmarksViewModel(source, "b1") { false }

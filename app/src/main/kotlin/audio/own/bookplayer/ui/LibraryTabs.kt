@@ -1,5 +1,6 @@
 package audio.own.bookplayer.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.heading
 import android.content.Context
@@ -164,6 +165,9 @@ fun LibraryTabs(container: AppContainer, onOpenPlayer: () -> Unit, onSettings: (
         )
     }
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
+    // Back on another tab's first screen goes to Home, as Android's tabbed apps do, rather than
+    // leaving the app. Composed before the tabs, so a tab with screens to go back through wins.
+    BackHandler(enabled = tab != Tab.HOME) { tab = Tab.HOME }
     val holder = rememberSaveableStateHolder()
     val known = remember { mutableMapOf<String, Book>() }
 
@@ -306,6 +310,8 @@ private fun TabHost(
             val state by vm.state.collectAsStateWithLifecycle()
             ReloadOnPause(playback.isPlaying) { vm.refresh() }
             LaunchedEffect(vm) { container.playbackModel.progressChanged.collect { vm.refresh() } }
+            val bookmarkEdit = container.bookmarkEdits.collectAsStateWithLifecycle().value[id] ?: 0
+            LaunchedEffect(vm, bookmarkEdit) { if (vm.seesBookmarkEdit(bookmarkEdit)) vm.refresh() }
             BookContent(
                 serverId = serverId,
                 state = state,
@@ -402,12 +408,10 @@ private fun BooksList(
         BooksListViewModel(source, query, grid = prefs.getBoolean("grid", true), onGrid = { on -> prefs.edit { putBoolean("grid", on) } })
     }
     val state by vm.state.collectAsStateWithLifecycle()
-    // Offline or back online: the list is another one now.
-    var shownOffline by remember { mutableStateOf(offline) }
-    LaunchedEffect(offline) {
-        if (offline != shownOffline) vm.reload()
-        shownOffline = offline
-    }
+    // Offline or back online, or Whole Library switched while offline: the list is another one now.
+    val playbackPrefs by container.playbackSettings.prefs.collectAsStateWithLifecycle()
+    val listing = LibraryListing.of(offline, playbackPrefs.wholeLibraryOffline)
+    LaunchedEffect(vm, listing) { if (vm.seesListing(listing)) vm.reload() }
     // An import or a narration finished and the catalogue has the book now.
     LaunchedEffect(vm, library.serverId) { container.libraryGrew.collect { if (it == library.serverId) vm.reload(refreshing = true) } }
     BooksListContent(
@@ -538,4 +542,20 @@ private fun DownloadsTab(container: AppContainer, onOpen: (audio.own.bookplayer.
         onRetryFailed = { container.scope.launch { container.downloads.retryFailed() } },
         onRemoveAll = { container.scope.launch { container.downloads.removeAll() } },
     )
+}
+
+/** Which books a library list holds: the server's, the downloads, or offline the whole own.audio catalogue. */
+internal enum class LibraryListing {
+    ONLINE,
+    DOWNLOADS,
+    WHOLE_CATALOGUE,
+    ;
+
+    companion object {
+        fun of(offline: Boolean, wholeLibrary: Boolean): LibraryListing = when {
+            !offline -> ONLINE
+            wholeLibrary -> WHOLE_CATALOGUE
+            else -> DOWNLOADS
+        }
+    }
 }

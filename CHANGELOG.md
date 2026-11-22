@@ -5,6 +5,7 @@ All notable changes to own.audio Books for Android. The format follows
 
 ## [Unreleased]
 
+- Fixes from the emulator test against real servers (docs/tests/2026-11-22-emulator.md): the book page shows a playing file's own chapter marks, the player's tools stay reachable on short phones, bookmarks and progress on the book page follow the player, Back on a tab's first screen goes to Home, Whole Library When Offline reloads the Library, Audiobookshelf series without a number and bookmarks without a label, a second swipe in Downloads, tab labels at 200 % text.
 - Release preparation: a release workflow for tags (both flavours' APKs and the Play bundle, signed when the repository has the key), the guide published by GitHub Pages, store texts in English and Czech with the 512 px icon (also F-Droid's layout), the APK size budget per app, and docs/release.md with the maintainer's steps.
 - Adding an account the app already has (the same server and the same user) is refused with "This server is already added. To sign in again, open it in Settings."; another user on the same server can still be added.
 - B13: TalkBack names and values throughout, headings, 48 dp targets, layouts at 200 % text, the player side by side on tablets in landscape, phones upright; removing a server stops its book; a finished download replaces the stream through the spoken player's own swap; misuse tests.

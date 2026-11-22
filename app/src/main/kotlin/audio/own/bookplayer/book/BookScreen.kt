@@ -86,6 +86,7 @@ import audio.own.book.library.BookSharing
 import audio.own.book.library.BookSource
 import audio.own.book.library.Bookmark
 import audio.own.book.library.Capability
+import audio.own.book.library.Chapter
 import audio.own.book.library.ListeningProgress
 import audio.own.book.library.SeriesRef
 import audio.own.book.library.Visibility
@@ -180,6 +181,19 @@ class BookViewModel(
             }
             refresh()
         }
+    }
+
+    private var bookmarkEdit: Int? = null
+
+    /**
+     * True when [edit] (how many times the player changed this book's bookmarks) is newer than
+     * what this page last saw: then it reads them again. The first count seen is the baseline,
+     * as the page has just read them.
+     */
+    fun seesBookmarkEdit(edit: Int): Boolean {
+        val newer = bookmarkEdit != null && bookmarkEdit != edit
+        bookmarkEdit = edit
+        return newer
     }
 
     /** Where the listener is, their bookmarks and favourite; after playing or a change. */
@@ -452,7 +466,7 @@ private fun BookBody(
         Column {
             when (tab) {
                 BookTab.CHAPTERS -> {
-                    val chapters = book.chapters.orEmpty()
+                    val chapters = shownChapters(book, isThis, playback)
                     when {
                         chapters.isNotEmpty() -> chapters.forEach { chapter ->
                             val current = isThis && playback.chapter?.startMs == chapter.startMs
@@ -626,3 +640,12 @@ private fun TimeRow(title: String, time: String, current: Boolean = false, playi
 private fun Muted(text: String) {
     Text(text, style = MaterialTheme.typography.bodyMedium, color = LocalPalette.current.muted, modifier = Modifier.padding(Tokens.Spacing.md).padding(horizontal = Tokens.Spacing.xs))
 }
+
+/**
+ * The server's chapters; without them, for the book that is playing, the marks the player read
+ * from its files (an .m4b's own chapters), so the page and the player list the same ones.
+ */
+internal fun shownChapters(book: Book, isThis: Boolean, playback: PlaybackUi): List<Chapter> =
+    book.chapters.orEmpty().ifEmpty {
+        if (isThis && playback.hasRealChapters) playback.chapters.map { Chapter(it.title, it.startMs, it.endMs) } else emptyList()
+    }

@@ -116,10 +116,24 @@ class PlaybackModel(
             }
         },
     ).also { box ->
-        box.onAnswer = { entry, answer -> if (answer != null && !answer.applied) takeServerPosition(entry.compositeId, answer) }
+        box.onAnswer = { entry, answer ->
+            when {
+                answer != null && !answer.applied -> takeServerPosition(entry.compositeId, answer)
+                // A pause's position reached the server: the screens, which read again on the
+                // pause itself (before the server had it), read once more.
+                stoppedPositionOnItsWay -> {
+                    stoppedPositionOnItsWay = false
+                    _progressChanged.tryEmit(Unit)
+                }
+            }
+        }
         box.onStale = { entry -> sources.source(entry.serverId)?.progress(entry.bookId)?.let { takeServerPosition(entry.compositeId, it) } }
         box.onSignInRefused = { serverId -> servers?.markRefused(serverId) }
     }
+
+    /** A pause, stop or end was recorded and not yet answered by the server. */
+    @Volatile
+    private var stoppedPositionOnItsWay = false
 
     /** Positions changed outside this screen: another device's, a newer one the server kept, a book marked finished. */
     private val _progressChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
@@ -585,6 +599,9 @@ class PlaybackModel(
         val id = BookId(position.bookId)
         val server = id.serverId
         val closes = position.reason == ReportReason.STOP || position.reason == ReportReason.FINISHED || position.reason == ReportReason.TEARDOWN
+        if (position.reason == ReportReason.PAUSE || position.reason == ReportReason.STOP || position.reason == ReportReason.FINISHED) {
+            stoppedPositionOnItsWay = true
+        }
         val due = outbox.record(
             ProgressOutbox.Entry(
                 serverId = server, bookId = id.bookId, sessionId = sessions[position.bookId], positionMs = position.positionMs,

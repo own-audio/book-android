@@ -23,7 +23,7 @@ Above the books are chips to the other ways into the library. Only those the ser
 | **Series** | Yes | Yes |
 | **Authors** | Yes | Yes |
 | **Narrators** | Yes | Yes |
-| **Collections** | No | Yes |
+| **Collections** | Yes | Yes |
 
 More books load as you reach the end of the list. Pull down to reload.
 
@@ -55,9 +55,9 @@ books in reading order, each with its number in the series.
 **Filter** field at the top to find someone in a long list. A person opens their books, with the
 same sort and filter menu as the library.
 
-## Collections (Audiobookshelf)
+## Collections
 
-**Collections** lists the collections made on your Audiobookshelf server, with the number of
+**Collections** lists the collections made on your server, with the number of
 books in each. A collection opens its books.
 
 ## Downloading a whole set

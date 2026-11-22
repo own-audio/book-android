@@ -42,7 +42,7 @@ buttons only appear on one kind of server.
 | Positions shared with your other devices | Yes | Yes |
 | Asks which position to use when another device is ahead | Yes | No |
 | Series, authors, narrators | Yes | Yes |
-| Collections | No | Yes |
+| Collections | Yes | Yes |
 | Favorites | Yes | No |
 | Several book libraries in one account | No | Yes |
 | Smaller stream on mobile data (**Saver**) | Yes | Yes |
