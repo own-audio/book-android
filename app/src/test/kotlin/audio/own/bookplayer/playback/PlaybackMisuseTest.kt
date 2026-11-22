@@ -91,7 +91,7 @@ class PlaybackMisuseTest {
         // Every part's placeholder link plays the same file: the links are not what is tested.
         val files = ResolvingDataSource.Factory(DefaultDataSource.Factory(context)) { spec -> spec.withUri(Uri.fromFile(wav)) }
         exo = TestExoPlayerBuilder(context).setMediaSourceFactory(DefaultMediaSourceFactory(files)).build()
-        spoken = SpokenPlayer(exo, scope, now = { clock })
+        spoken = SpokenPlayer(exo, scope, idleReleaseMs = null, now = { clock })
         model = PlaybackModel(
             context = context, sources = sources, servers = null, settings = MemoryPlaybackSettings(), network = network,
             offline = offline, log = AppLog(null, echo = false), filesDir = folder.newFolder("files"),
