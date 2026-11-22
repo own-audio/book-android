@@ -1,5 +1,8 @@
 package audio.own.bookplayer.browse
 
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -91,8 +94,18 @@ fun BookCard(
     val download = LocalBookDownloads.current.state(serverId, book.id)
     // Offline, a book on the phone still plays: only the others are greyed.
     val dim = dimmed && download != DownloadState.Downloaded
+    // The badges are drawn over the cover; TalkBack reads them after the title.
+    val badges = listOfNotNull(
+        stringResource(SR.string.shared_with_family).takeIf { book.visibility == Visibility.FAMILY },
+        stringResource(R.string.favorite).takeIf { isFavourite },
+        stringResource(SR.string.downloaded).takeIf { download == DownloadState.Downloaded },
+        fraction?.let { if (progress?.finished == true) stringResource(R.string.finished) else stringResource(R.string.percent_listened, percent(it)) },
+    ).joinToString(", ")
     Column(
-        modifier.width(width).alpha(if (dim) 0.45f else 1f).clearAndSetSemantics { contentDescription = label },
+        modifier.width(width).alpha(if (dim) 0.45f else 1f).clearAndSetSemantics {
+            contentDescription = label
+            if (badges.isNotEmpty()) stateDescription = badges
+        },
         verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.sm),
     ) {
         Box {
@@ -178,7 +191,7 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier) {
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
         color = LocalPalette.current.foreground,
-        modifier = modifier.padding(horizontal = Tokens.Spacing.screenEdge),
+        modifier = modifier.padding(horizontal = Tokens.Spacing.screenEdge).semantics { heading() },
     )
 }
 

@@ -1,5 +1,6 @@
 package audio.own.bookplayer.account
 
+import androidx.compose.ui.semantics.heading
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.background
@@ -178,7 +179,7 @@ private fun Header(household: HouseholdInfo) {
             Icon(Icons.Filled.Groups, contentDescription = null, tint = accent, modifier = Modifier.size(44.dp))
             household.family.image?.let { AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(104.dp)) }
         }
-        Text(household.family.name, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+        Text(household.family.name, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
         Text(
             pluralStringResource(R.plurals.members_count, household.members.size, household.members.size),
             style = MaterialTheme.typography.bodyMedium,

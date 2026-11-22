@@ -1,5 +1,7 @@
 package audio.own.bookplayer.ui
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -143,7 +145,7 @@ fun HomeTopBar(
 ) {
     val choices = serverChoices(servers)
     TopAppBar(
-        title = { Text(stringResource(Tab.HOME.title)) },
+        title = { Text(stringResource(Tab.HOME.title), modifier = Modifier.semantics { heading() }) },
         actions = {
             if (choices.size > 1) ServerMenu(choices, currentChoice(servers, activeId), onSelectServer)
             IconToggleButton(checked = offlineMode, onCheckedChange = onOfflineMode) {

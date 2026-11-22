@@ -209,4 +209,8 @@
     <string name="size_gb">%1$d GB</string>
     <string name="whole_library_offline">Celá knihovna offline</string>
     <string name="downloads_footer">Režim offline zobrazí a přehraje jen to, co je v tomto zařízení, stejně jako aplikace sama bez sítě. Po překročení limitu se nejdřív odeberou dokončené knihy, pak nejdéle nepřehrávané; nikdy ta, která právě hraje.\n\nS celou knihovnou se knihovna serveru own.audio ukazuje offline z kopie v tomto zařízení, nestažené knihy jsou zašedlé; přehrají se jen stažené.</string>
+    <!-- What TalkBack reads (B13). -->
+    <string name="favorite">Oblíbená</string>
+    <string name="percent_listened">poslechnuto %1$s</string>
+    <string name="play_where_left_off">%1$s, přehrát od místa, kde jste skončili</string>
 </resources>

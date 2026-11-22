@@ -1,5 +1,13 @@
 package audio.own.bookplayer.player
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.heading
 import android.content.Context
 import android.media.MediaRouter2
 import android.os.Build
@@ -95,6 +103,9 @@ import audio.own.player.spoken.SleepEnd
 import audio.own.player.spoken.SpeedText
 import audio.own.core.strings.R as SR
 
+private val SIDE_BY_SIDE_MIN_WIDTH = 840.dp
+private const val LARGE_TEXT_SCALE = 1.5f
+
 /** Which sheet of the player is up. */
 enum class PlayerSheet { SPEED, SLEEP, CHAPTERS, BOOKMARKS }
 
@@ -162,17 +173,43 @@ fun PlayerContent(
             EmptyState(BookSymbol, stringResource(R.string.nothing_playing), null, Modifier.padding(inner))
             return@Scaffold
         }
-        Column(
-            Modifier.fillMaxSize().padding(inner).verticalScroll(rememberScrollState()).padding(bottom = Tokens.Spacing.xl),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.xl),
-        ) {
-            Cover(state)
-            Titles(state, onChapters = { sheet = PlayerSheet.CHAPTERS })
-            Scrubbers(state, actions.onSeek)
-            Transport(state, actions)
-            Tools(state, onSheet = { sheet = it; if (it == PlayerSheet.BOOKMARKS) onLoadBookmarks() })
-            LaunchedEffect(Unit) { if (initialSheet == PlayerSheet.BOOKMARKS) onLoadBookmarks() }
+        val openSheet: (PlayerSheet) -> Unit = { sheet = it; if (it == PlayerSheet.BOOKMARKS) onLoadBookmarks() }
+        LaunchedEffect(Unit) { if (initialSheet == PlayerSheet.BOOKMARKS) onLoadBookmarks() }
+        BoxWithConstraints(Modifier.fillMaxSize().padding(inner)) {
+            // A tablet on its side: the cover beside the controls, so neither needs scrolling.
+            if (maxWidth >= SIDE_BY_SIDE_MIN_WIDTH && maxWidth > maxHeight) {
+                Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(
+                        Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.xl, Alignment.CenterVertically),
+                    ) {
+                        Cover(state)
+                        Titles(state, onChapters = { sheet = PlayerSheet.CHAPTERS })
+                    }
+                    Column(
+                        Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(vertical = Tokens.Spacing.xl),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.xl, Alignment.CenterVertically),
+                    ) {
+                        Scrubbers(state, actions.onSeek)
+                        Transport(state, actions)
+                        Tools(state, onSheet = openSheet)
+                    }
+                }
+            } else {
+                Column(
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = Tokens.Spacing.xl),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.xl),
+                ) {
+                    Cover(state)
+                    Titles(state, onChapters = { sheet = PlayerSheet.CHAPTERS })
+                    Scrubbers(state, actions.onSeek)
+                    Transport(state, actions)
+                    Tools(state, onSheet = openSheet)
+                }
+            }
         }
     }
     when (sheet) {
@@ -194,12 +231,7 @@ private fun Cover(state: PlaybackUi) {
     val palette = LocalPalette.current
     Box(Modifier.padding(top = Tokens.Spacing.lg)) {
         CoverArt(state.cover, 260.dp, BookSymbol)
-        val badge = when (val sleep = state.sleep) {
-            is SleepUi.Countdown -> clock((sleep.remainingSecs * 1000).toLong())
-            SleepUi.EndOfChapter -> stringResource(R.string.end_of_chapter)
-            SleepUi.EndOfBook -> stringResource(R.string.end_of_book)
-            SleepUi.Off -> null
-        }
+        val badge = sleepText(state.sleep)
         if (badge != null) {
             Row(
                 Modifier.align(Alignment.TopEnd).padding(Tokens.Spacing.sm).background(palette.backgroundAlt.copy(alpha = 0.92f), CircleShape).padding(horizontal = Tokens.Spacing.sm, vertical = Tokens.Spacing.xs),
@@ -213,11 +245,20 @@ private fun Cover(state: PlaybackUi) {
     }
 }
 
+/** What the sleep timer is set to, as the badge on the cover shows it; null when off. */
+@Composable
+private fun sleepText(sleep: SleepUi): String? = when (sleep) {
+    is SleepUi.Countdown -> clock((sleep.remainingSecs * 1000).toLong())
+    SleepUi.EndOfChapter -> stringResource(R.string.end_of_chapter)
+    SleepUi.EndOfBook -> stringResource(R.string.end_of_book)
+    SleepUi.Off -> null
+}
+
 @Composable
 private fun Titles(state: PlaybackUi, onChapters: () -> Unit) {
     val palette = LocalPalette.current
     Column(Modifier.padding(horizontal = Tokens.Spacing.xl), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.xs)) {
-        Text(state.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = palette.foreground, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(state.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = palette.foreground, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() })
         if (state.author.isNotBlank()) Text(state.author, style = MaterialTheme.typography.titleSmall, color = palette.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
         val chapter = state.chapter?.title ?: stringResource(R.string.chapters)
         val label = stringResource(R.string.chapter_label, state.chapter?.title.orEmpty())
@@ -329,13 +370,19 @@ private fun Transport(state: PlaybackUi, actions: PlayerActions) {
 private fun Tools(state: PlaybackUi, onSheet: (PlayerSheet) -> Unit) {
     val palette = LocalPalette.current
     val context = LocalContext.current
-    Row(Modifier.widthIn(max = 500.dp).fillMaxWidth().padding(top = Tokens.Spacing.sm)) {
+    // With large text five captions don't fit one row: three to a row then.
+    val crowded = LocalDensity.current.fontScale >= LARGE_TEXT_SCALE
+    FlowRow(
+        Modifier.widthIn(max = 500.dp).fillMaxWidth().padding(top = Tokens.Spacing.sm),
+        maxItemsInEachRow = if (crowded) 3 else 5,
+        verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.md),
+    ) {
         val speedTinted = state.speed != 1f
         Tool(stringResource(R.string.speed), stringResource(R.string.speed_label, SpeedText.number(state.speed)), speedTinted, { onSheet(PlayerSheet.SPEED) }) {
             Text(SpeedText.text(state.speed), style = MaterialTheme.typography.titleSmall.tabular(), fontWeight = FontWeight.SemiBold, color = if (speedTinted) palette.accent else palette.foreground)
         }
         val sleeping = state.sleep.isOn
-        Tool(stringResource(R.string.sleep), stringResource(R.string.sleep_timer), sleeping, { onSheet(PlayerSheet.SLEEP) }) {
+        Tool(stringResource(R.string.sleep), stringResource(R.string.sleep_timer), sleeping, { onSheet(PlayerSheet.SLEEP) }, value = sleepText(state.sleep)) {
             Icon(if (sleeping) Icons.Filled.Bedtime else Icons.Outlined.Bedtime, null, tint = if (sleeping) palette.accent else palette.foreground)
         }
         Tool(stringResource(R.string.bookmarks), stringResource(R.string.bookmarks), false, { onSheet(PlayerSheet.BOOKMARKS) }) {
@@ -360,14 +407,19 @@ private fun showOutputSwitcher(context: Context) {
 }
 
 @Composable
-private fun androidx.compose.foundation.layout.RowScope.Tool(caption: String, label: String, tinted: Boolean, onClick: () -> Unit, icon: @Composable () -> Unit) {
+private fun androidx.compose.foundation.layout.RowScope.Tool(caption: String, label: String, tinted: Boolean, onClick: () -> Unit, value: String? = null, icon: @Composable () -> Unit) {
     val palette = LocalPalette.current
     Column(
-        Modifier.weight(1f).heightIn(min = Tokens.minTarget).clickable(onClick = onClick).semantics { contentDescription = label }.padding(vertical = Tokens.Spacing.xs),
+        Modifier.weight(1f).heightIn(min = Tokens.minTarget).clickable(onClick = onClick, role = androidx.compose.ui.semantics.Role.Button).clearAndSetSemantics {
+            contentDescription = label
+            if (value != null) stateDescription = value
+            role = androidx.compose.ui.semantics.Role.Button
+            onClick { onClick(); true }
+        }.padding(vertical = Tokens.Spacing.xs),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.xs),
     ) {
-        Box(Modifier.height(24.dp), contentAlignment = Alignment.Center) { icon() }
+        Box(Modifier.heightIn(min = 24.dp), contentAlignment = Alignment.Center) { icon() }
         Text(caption, style = MaterialTheme.typography.labelSmall, color = if (tinted) palette.accent else palette.foreground, maxLines = 1)
     }
 }

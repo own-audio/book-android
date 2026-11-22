@@ -21,33 +21,39 @@ import okhttp3.OkHttpClient
  */
 @UnstableApi
 class PlaybackEngine(
-    context: Context,
-    resolver: BookLinkResolver,
-    /** The bare client: stream links need no Authorization and must never carry it. */
-    bareHttp: OkHttpClient,
-    userAgent: String,
-    isConnected: () -> Boolean,
-    mainScope: CoroutineScope,
+    val spoken: SpokenPlayer,
+    /** The look-ahead window "Keep Ahead" sets; null in tests. */
+    val loadControl: LookAheadLoadControl?,
 ) {
-    val cache = ListeningCache.open(context)
-    val dataSources = PlaybackDataSources(context, resolver, bareHttp, cache, userAgent = userAgent)
-    val loadControl = LookAheadLoadControl()
-    private val policy = SignalWaitPolicy(isConnected)
-    val spoken = SpokenPlayer(
-        player = SpokenPlayer.buildExoPlayer(context, SpokenMediaSourceFactory(context, dataSources, policy), loadControl),
-        scope = mainScope,
-        links = dataSources.links,
-        prefetcher = Prefetcher(dataSources, mainScope),
-        openPart = PartReaders(dataSources.links, bareHttp)::open,
-        loadControl = loadControl,
-    )
-
-    init {
-        spoken.onLinkFailed = { part, error ->
-            // Audiobookshelf answers 401 for a token that ran out: the next link takes a new one.
-            val refused = generateSequence<Throwable>(error) { it.cause }.filterIsInstance<HttpDataSource.InvalidResponseCodeException>().firstOrNull()
-            val bookId = spoken.bookId
-            if (refused?.responseCode == 401 && bookId != null) resolver.refused(bookId, refused.dataSpec.uri.toString())
+    companion object {
+        fun create(
+            context: Context,
+            resolver: BookLinkResolver,
+            /** The bare client: stream links need no Authorization and must never carry it. */
+            bareHttp: OkHttpClient,
+            userAgent: String,
+            isConnected: () -> Boolean,
+            mainScope: CoroutineScope,
+        ): PlaybackEngine {
+            val cache = ListeningCache.open(context)
+            val dataSources = PlaybackDataSources(context, resolver, bareHttp, cache, userAgent = userAgent)
+            val loadControl = LookAheadLoadControl()
+            val policy = SignalWaitPolicy(isConnected)
+            val spoken = SpokenPlayer(
+                player = SpokenPlayer.buildExoPlayer(context, SpokenMediaSourceFactory(context, dataSources, policy), loadControl),
+                scope = mainScope,
+                links = dataSources.links,
+                prefetcher = Prefetcher(dataSources, mainScope),
+                openPart = PartReaders(dataSources.links, bareHttp)::open,
+                loadControl = loadControl,
+            )
+            spoken.onLinkFailed = { _, error ->
+                // Audiobookshelf answers 401 for a token that ran out: the next link takes a new one.
+                val refused = generateSequence<Throwable>(error) { it.cause }.filterIsInstance<HttpDataSource.InvalidResponseCodeException>().firstOrNull()
+                val bookId = spoken.bookId
+                if (refused?.responseCode == 401 && bookId != null) resolver.refused(bookId, refused.dataSpec.uri.toString())
+            }
+            return PlaybackEngine(spoken, loadControl)
         }
     }
 }

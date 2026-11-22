@@ -12,6 +12,7 @@ import audio.own.bookplayer.playback.PlaybackPrefs
 import audio.own.core.downloads.DownloadEntity
 import audio.own.core.downloads.DownloadFetcher
 import audio.own.core.downloads.DownloadScheduler
+import audio.own.core.downloads.Downloads
 import audio.own.core.downloads.DownloadsDatabase
 import audio.own.player.core.PlaybackLink
 import audio.own.player.core.ProxyMemory
@@ -170,6 +171,56 @@ class BookDownloadsTest {
         finish("srv|b1", "f0", bytes = 5L shl 30)
         downloads.enforceCap()
         assertEquals(1, db.downloads().items().size)
+    }
+
+    @Test
+    fun `killed mid-download, the next start keeps what arrived and fetches the rest`() = runBlocking {
+        downloads.download("srv", book("b1"))
+        File(root, "x/f0.mp3").apply { parentFile?.mkdirs() }.writeBytes(ByteArray(100))
+        finish("srv|b1", "f0")
+        // The second file was half on its way when the process died.
+        val second = db.downloads().item("srv|b1#f1")!!
+        val part = File(root, "${Downloads.safeName(second.serverId)}/${Downloads.safeName(second.key)}.part").apply {
+            parentFile?.mkdirs()
+            writeBytes(ByteArray(40))
+        }
+        scope.cancel()
+
+        val restarted = object : DownloadScheduler {
+            val queued = mutableListOf<String>()
+            override suspend fun active(): Set<String> = queued.toSet()
+            override fun enqueue(key: String, wifiOnly: Boolean, replace: Boolean) {
+                if (key !in queued) queued += key
+            }
+            override fun cancel(key: String) {
+                queued -= key
+            }
+            override fun cancelAll() = queued.clear()
+        }
+        val again = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val next = BookDownloads(
+                db = db, root = root, scheduler = restarted,
+                fetcher = DownloadFetcher(OkHttpClient(), ProxyMemory()),
+                sourceOf = { null }, serversLoaded = {}, prefs = prefs,
+                playing = { null }, isFinished = { false },
+                log = AppLog(File(root, "logs")), scope = again,
+                linkResolver = { PlaybackLink("http://localhost/none") },
+                holdingsDelayMs = 60_000,
+            )
+            next.reconcile()
+            assertTrue("the file that arrived stays", File(root, "x/f0.mp3").isFile)
+            assertTrue("the half file stays for the resume", part.isFile)
+            assertEquals(listOf("srv|b1#f1"), restarted.queued)
+            eventually { (next.state.value.state("srv|b1") as? DownloadState.Downloading)?.fraction == 0.5f }
+            assertTrue("the first part plays from the phone", next.localFile("srv|b1", "f0") != null)
+
+            File(root, "x/f1.mp3").writeBytes(ByteArray(100))
+            finish("srv|b1", "f1", at = 20)
+            eventually { next.state.value.state("srv|b1") == DownloadState.Downloaded }
+        } finally {
+            again.cancel()
+        }
     }
 
     @Test

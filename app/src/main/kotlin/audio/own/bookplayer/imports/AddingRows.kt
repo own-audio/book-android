@@ -1,5 +1,7 @@
 package audio.own.bookplayer.imports
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -95,7 +97,7 @@ private fun Header(text: String) {
         text.uppercase(),
         style = MaterialTheme.typography.labelMedium,
         color = LocalPalette.current.muted,
-        modifier = Modifier.padding(horizontal = Tokens.Spacing.screenEdge, vertical = Tokens.Spacing.sm),
+        modifier = Modifier.padding(horizontal = Tokens.Spacing.screenEdge, vertical = Tokens.Spacing.sm).semantics { heading() },
     )
 }
 

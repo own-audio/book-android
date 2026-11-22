@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.SearchManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -31,6 +32,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        requestedOrientation = orientationFor(resources.configuration.smallestScreenWidthDp)
         setContent { AppRoot(container) }
         // After a rotation the same intent comes back; it was handled the first time.
         if (savedInstanceState == null) handle(intent)
@@ -103,6 +105,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
+        /**
+         * Phones stay upright, as book-ios on the iPhone; tablets and an unfolded foldable turn
+         * freely. Asked again on every start, so folding or unfolding picks the right one.
+         */
+        fun orientationFor(smallestWidthDp: Int): Int =
+            if (smallestWidthDp < TABLET_MIN_WIDTH_DP) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+
+        private const val TABLET_MIN_WIDTH_DP = 600
         const val EXTRA_OPEN_PLAYER = "openPlayer"
         const val ACTION_CONTINUE = "audio.own.bookplayer.CONTINUE_LISTENING"
         private const val ASKED = "notificationsAsked"

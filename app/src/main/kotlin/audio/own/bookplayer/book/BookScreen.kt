@@ -1,5 +1,16 @@
 package audio.own.bookplayer.book
 
+import audio.own.bookplayer.browse.percent
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -385,7 +396,7 @@ private fun BookBody(
         Row(Modifier.padding(horizontal = Tokens.Spacing.screenEdge), horizontalArrangement = Arrangement.spacedBy(Tokens.Spacing.lg)) {
             BookCover(serverId, book, 120.dp)
             Column(Modifier.weight(1f).heightIn(min = 120.dp), verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.xs)) {
-                Text(book.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = palette.foreground)
+                Text(book.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = palette.foreground, modifier = Modifier.semantics { heading() })
                 book.subtitle?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = palette.muted) }
                 if (book.authors.isNotEmpty()) Text(book.authorLine, style = MaterialTheme.typography.titleSmall, color = palette.muted)
                 book.series.forEach { series ->
@@ -393,7 +404,8 @@ private fun BookBody(
                         series.sequence?.let { stringResource(R.string.series_number, series.name, it) } ?: series.name,
                         style = MaterialTheme.typography.bodySmall,
                         color = palette.accent,
-                        modifier = Modifier.clickable { onOpenSeries(series) },
+                        // 48 dp to tap, the text as small as iOS draws it.
+                        modifier = Modifier.minimumInteractiveComponentSize().clickable(role = Role.Button) { onOpenSeries(series) },
                     )
                 }
                 if (book.visibility == Visibility.FAMILY) {
@@ -497,13 +509,21 @@ fun PlayCapsule(book: Book, progress: ListeningProgress?, isThis: Boolean, playb
         progress != null && progress.positionMs > 0 -> stringResource(R.string.play_continue) to Icons.Filled.PlayArrow
         else -> stringResource(SR.string.play) to Icons.Filled.PlayArrow
     }
+    val listened = if (progress?.finished == true && !isThis) stringResource(R.string.finished) else stringResource(R.string.percent_listened, percent(fraction))
     Box(
         modifier
             .fillMaxWidth()
             .height(50.dp)
             .clip(CircleShape)
             .background(palette.accent.copy(alpha = 0.55f))
-            .clickable(enabled = !starting) { haptics.performHapticFeedback(HapticFeedbackType.ContextClick); onClick() },
+            .clickable(enabled = !starting, role = Role.Button) { haptics.performHapticFeedback(HapticFeedbackType.ContextClick); onClick() }
+            .clearAndSetSemantics {
+                role = Role.Button
+                contentDescription = label
+                if (fraction > 0f) stateDescription = listened
+                if (starting) disabled()
+                onClick(label = label) { onClick(); true }
+            },
         contentAlignment = Alignment.Center,
     ) {
         Box(Modifier.align(Alignment.CenterStart).fillMaxHeight().fillMaxWidth(if (fraction >= 0.01f) fraction else 0f).background(palette.accent))
@@ -538,7 +558,7 @@ private fun Description(text: String) {
             stringResource(if (expanded) R.string.show_less else R.string.show_more),
             style = MaterialTheme.typography.labelLarge,
             color = palette.accent,
-            modifier = Modifier.padding(horizontal = Tokens.Spacing.screenEdge).clickable { expanded = !expanded },
+            modifier = Modifier.padding(horizontal = Tokens.Spacing.screenEdge).minimumInteractiveComponentSize().clickable(role = Role.Button) { expanded = !expanded },
         )
     }
 }
@@ -547,7 +567,7 @@ private fun Description(text: String) {
 private fun Details(book: Book) {
     val context = LocalContext.current
     Column(Modifier.padding(horizontal = Tokens.Spacing.screenEdge)) {
-        Text(stringResource(R.string.details), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = LocalPalette.current.foreground, modifier = Modifier.padding(bottom = Tokens.Spacing.sm))
+        Text(stringResource(R.string.details), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = LocalPalette.current.foreground, modifier = Modifier.padding(bottom = Tokens.Spacing.sm).semantics { heading() })
         if (book.narrators.isNotEmpty()) DetailRow(Icons.Filled.Mic, stringResource(R.string.narrator), book.narratorLine)
         DetailRow(Icons.Filled.Schedule, stringResource(R.string.length), lengthText(book.durationMs))
         book.publishedYear?.let { DetailRow(Icons.Filled.CalendarMonth, stringResource(R.string.published), it) }

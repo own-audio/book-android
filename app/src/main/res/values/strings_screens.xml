@@ -204,4 +204,8 @@
     <string name="size_gb">%1$d GB</string>
     <string name="whole_library_offline">Whole Library When Offline</string>
     <string name="downloads_footer">Offline Mode shows and plays only what is on this device, as the app does on its own with no network. Over the limit, finished books go first, then the ones not played for longest; never the one playing.\n\nWith Whole Library, an own.audio server\'s whole library is listed offline from the copy on this device, with the books not downloaded grayed out; only downloaded books play.</string>
+    <!-- What TalkBack reads (B13). -->
+    <string name="favorite">Favorite</string>
+    <string name="percent_listened">%1$s listened</string>
+    <string name="play_where_left_off">%1$s, play from where you left off</string>
 </resources>

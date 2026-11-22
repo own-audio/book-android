@@ -15,7 +15,6 @@ import audio.own.bookplayer.servers.ServersModel
 import java.io.File
 import java.net.URLDecoder
 import java.nio.file.Files
-import java.util.Collections
 import java.util.concurrent.Executors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +37,8 @@ import okhttp3.OkHttpClient
  */
 class FakeOwnAudio : AutoCloseable {
     val server = MockWebServer()
-    val requests: MutableList<RecordedRequest> = Collections.synchronizedList(mutableListOf())
+    // Copy-on-write: tests read it while background work (the address check) still adds to it.
+    val requests: MutableList<RecordedRequest> = java.util.concurrent.CopyOnWriteArrayList()
 
     var identity = "srv-1"
     var revision = 17
@@ -216,7 +216,8 @@ fun closeMain(main: kotlinx.coroutines.ExecutorCoroutineDispatcher) {
  */
 class FakeAudiobookshelf : AutoCloseable {
     val server = MockWebServer()
-    val requests: MutableList<RecordedRequest> = Collections.synchronizedList(mutableListOf())
+    // Copy-on-write: tests read it while background work (the address check) still adds to it.
+    val requests: MutableList<RecordedRequest> = java.util.concurrent.CopyOnWriteArrayList()
 
     var password = "right password"
     var libraries = """[{"id":"lib1","name":"Fiction","mediaType":"book","displayOrder":1},{"id":"pod","name":"Podcasts","mediaType":"podcast","displayOrder":2},{"id":"lib2","name":"Kids","mediaType":"book","displayOrder":3}]"""

@@ -5,6 +5,7 @@ All notable changes to own.audio Books for Android. The format follows
 
 ## [Unreleased]
 
+- B13: TalkBack names and values throughout, headings, 48 dp targets, layouts at 200 % text, the player side by side on tablets in landscape, phones upright; removing a server stops its book; a finished download replaces the stream through the spoken player's own swap; misuse tests.
 - The user guide (`guide/`, for GitHub Pages): every screen, with screenshots.
 - A book or episode loaded to be shown paused no longer starts playing by itself after the previous one played (the shared spoken player).
 - B12: Android Auto (Continue Listening, Downloads, Library, Series, Authors, the chapters while a book plays, a speed button, search), the Continue Listening widget, ownbook://play links, the assistant ("continue listening", "continue my book", "play ‹book›") and a Continue Listening shortcut; Play on a headset or the system's controls after the app was ended resumes the last book.

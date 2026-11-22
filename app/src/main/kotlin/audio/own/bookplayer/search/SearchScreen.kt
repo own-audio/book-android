@@ -1,5 +1,7 @@
 package audio.own.bookplayer.search
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -152,7 +154,7 @@ private fun Header(text: String) {
             text.uppercase(),
             style = MaterialTheme.typography.labelMedium,
             color = LocalPalette.current.muted,
-            modifier = Modifier.padding(start = Tokens.Spacing.screenEdge, end = Tokens.Spacing.screenEdge, top = Tokens.Spacing.lg, bottom = Tokens.Spacing.xs),
+            modifier = Modifier.padding(start = Tokens.Spacing.screenEdge, end = Tokens.Spacing.screenEdge, top = Tokens.Spacing.lg, bottom = Tokens.Spacing.xs).semantics { heading() },
         )
     }
 }

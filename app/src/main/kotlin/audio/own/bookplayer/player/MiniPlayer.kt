@@ -1,5 +1,9 @@
 package audio.own.bookplayer.player
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -35,7 +39,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import audio.own.bookplayer.R
 import audio.own.bookplayer.browse.BookSymbol
 import audio.own.bookplayer.browse.leftAtSpeed
@@ -62,7 +65,9 @@ fun SkipIcon(back: Boolean, secs: Int, size: Dp = 28.dp, contentDescription: Str
         )
         Text(
             "$secs",
-            fontSize = (size.value * 0.27f).sp,
+            // Part of the glyph, so it scales with the icon, not with the font size setting.
+            fontSize = with(LocalDensity.current) { (size * 0.27f).toSp() },
+            lineHeight = with(LocalDensity.current) { (size * 0.3f).toSp() },
             fontWeight = FontWeight.Bold,
             color = palette.foreground,
             modifier = Modifier.padding(top = size * 0.1f),
@@ -82,6 +87,7 @@ fun MiniPlayer(state: PlaybackUi, onOpen: () -> Unit, onToggle: () -> Unit, onSk
     val haptics = LocalHapticFeedback.current
     val shape = RoundedCornerShape(AppBrand.radii.miniPlayer)
     val openLabel = stringResource(R.string.opens_the_player)
+    val restoredLabel = stringResource(R.string.play_where_left_off, state.title)
     val open = {
         haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
         if (state.restored) onToggle()
@@ -94,7 +100,13 @@ fun MiniPlayer(state: PlaybackUi, onOpen: () -> Unit, onToggle: () -> Unit, onSk
     ) {
         Box(Modifier.clip(shape)) {
             Row(
-                Modifier.clickable(onClick = open).semantics { onClick(label = openLabel) { open(); true } }.padding(Tokens.Spacing.sm),
+                Modifier.clickable(onClick = open)
+                    .semantics(mergeDescendants = true) {
+                        onClick(label = openLabel) { open(); true }
+                        if (state.restored) contentDescription = restoredLabel
+                        progressBarRangeInfo = ProgressBarRangeInfo(state.progress, 0f..1f)
+                    }
+                    .padding(Tokens.Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 CoverArt(state.cover, 40.dp, BookSymbol, radius = AppBrand.radii.miniCover)

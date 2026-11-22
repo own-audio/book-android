@@ -1,5 +1,7 @@
 package audio.own.bookplayer.ui
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import android.content.Context
 import android.net.Uri
 import androidx.compose.foundation.clickable
@@ -473,21 +475,7 @@ private fun LibraryRoot(container: AppContainer, library: ActiveLibrary, go: Lib
     var selection by rememberSaveable { mutableStateOf<String?>(null) }
     val palette = LocalPalette.current
     Row(Modifier.fillMaxSize()) {
-        Column(Modifier.width(260.dp).fillMaxHeight().padding(Tokens.Spacing.sm)) {
-            Text(stringResource(R.string.tab_library), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(Tokens.Spacing.md))
-            val items = listOf<Pair<String?, Pair<String, androidx.compose.ui.graphics.vector.ImageVector>>>(null to (stringResource(R.string.all_books) to Icons.AutoMirrored.Filled.LibraryBooks)) +
-                sectionsFor(library.source.capabilities).map { it.name to (stringResource(it.title) to it.icon) } +
-                listOf("DOWNLOADS" to (stringResource(R.string.tab_downloads) to Icons.Filled.DownloadForOffline))
-            items.forEach { (key, value) ->
-                NavigationDrawerItem(
-                    label = { Text(value.first) },
-                    icon = { Icon(value.second, null) },
-                    selected = selection == key,
-                    onClick = { selection = key },
-                    colors = NavigationDrawerItemDefaults.colors(unselectedContainerColor = palette.background),
-                )
-            }
-        }
+        LibrarySidebar(library.source.capabilities, selection, onSelect = { selection = it })
         VerticalDivider(color = palette.border)
         Box(Modifier.weight(1f)) {
             key(selection) {
@@ -512,6 +500,27 @@ private fun LibraryRoot(container: AppContainer, library: ActiveLibrary, go: Lib
                     }
                 }
             }
+        }
+    }
+}
+
+/** The wide Library's sidebar: All Books, the sections the server has, and Downloads. */
+@Composable
+fun LibrarySidebar(capabilities: Set<audio.own.book.library.Capability>, selection: String?, onSelect: (String?) -> Unit) {
+    val palette = LocalPalette.current
+    Column(Modifier.width(260.dp).fillMaxHeight().padding(Tokens.Spacing.sm)) {
+        Text(stringResource(R.string.tab_library), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(Tokens.Spacing.md).semantics { heading() })
+        val items = listOf<Pair<String?, Pair<String, androidx.compose.ui.graphics.vector.ImageVector>>>(null to (stringResource(R.string.all_books) to Icons.AutoMirrored.Filled.LibraryBooks)) +
+            sectionsFor(capabilities).map { it.name to (stringResource(it.title) to it.icon) } +
+            listOf("DOWNLOADS" to (stringResource(R.string.tab_downloads) to Icons.Filled.DownloadForOffline))
+        items.forEach { (key, value) ->
+            NavigationDrawerItem(
+                label = { Text(value.first) },
+                icon = { Icon(value.second, null) },
+                selected = selection == key,
+                onClick = { onSelect(key) },
+                colors = NavigationDrawerItemDefaults.colors(unselectedContainerColor = palette.background),
+            )
         }
     }
 }

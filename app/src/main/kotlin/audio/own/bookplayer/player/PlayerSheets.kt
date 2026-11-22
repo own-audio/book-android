@@ -1,5 +1,7 @@
 package audio.own.bookplayer.player
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -73,7 +75,7 @@ private fun Sheet(onDismiss: () -> Unit, content: @Composable () -> Unit) {
 @Composable
 private fun SheetTitle(title: String, onDone: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = Tokens.Spacing.lg), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = LocalPalette.current.foreground, modifier = Modifier.weight(1f))
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = LocalPalette.current.foreground, modifier = Modifier.weight(1f).semantics { heading() })
         TextButton(onClick = onDone) { Text(stringResource(SR.string.done)) }
     }
 }

@@ -19,7 +19,7 @@ import audio.own.book.library.SourceException
 import audio.own.bookplayer.R
 import audio.own.bookplayer.app.AppLog
 import audio.own.bookplayer.downloads.BookDownloads
-import audio.own.bookplayer.library.BookSources
+import audio.own.bookplayer.library.PlaybackSources
 import audio.own.bookplayer.library.bookCoverRequest
 import audio.own.bookplayer.servers.ServersModel
 import audio.own.core.servers.MobileData
@@ -70,7 +70,7 @@ import kotlinx.serialization.Serializable
 @OptIn(UnstableApi::class)
 class PlaybackModel(
     private val context: Context,
-    private val sources: BookSources,
+    private val sources: PlaybackSources,
     private val servers: ServersModel?,
     private val settings: PlaybackSettings,
     private val network: StateFlow<NetworkState>,
@@ -80,6 +80,8 @@ class PlaybackModel(
     private val engineFactory: () -> PlaybackEngine,
     /** The books on the phone: their files play first, and they play with no network. */
     private val downloads: BookDownloads? = null,
+    /** Off in tests, where no media service runs. */
+    private val connectsService: Boolean = true,
 ) : PlaybackControls {
     private val main = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -156,15 +158,16 @@ class PlaybackModel(
     private var starting = false
     private var startJob: Job? = null
 
-    /** A file of the playing book arrived: it replaces the stream at the next pause or seek. */
-    private var localCopyWaiting = false
-
     init {
+        // The player moves the part playing over at the next pause or seek, never mid-sentence.
         downloads?.onFileReady = { id ->
             main.launch {
-                if (engineOrNull?.spoken?.bookId != id) return@launch
-                localCopyWaiting = true
-                if (engineOrNull?.spoken?.state?.value?.playWhenReady != true) useLocalCopies()
+                val spoken = engineOrNull?.spoken ?: return@launch
+                val book = spoken.currentBook?.takeIf { it.id == id } ?: return@launch
+                book.parts.forEachIndexed { index, part ->
+                    if (part.isHls) return@forEachIndexed
+                    downloads.localFile(id, part.id)?.let { spoken.useLocalCopy(index, it.toString()) }
+                }
             }
         }
         // A network that came back gets a moment to settle before the queue goes out.
@@ -281,56 +284,22 @@ class PlaybackModel(
 
     override fun seek(positionMs: Long) {
         engineOrNull?.spoken?.seek(positionMs)
-        afterSeek()
     }
 
     override fun skipBack() {
         engineOrNull?.spoken?.skipBack()
-        afterSeek()
     }
 
     override fun skipForward() {
         engineOrNull?.spoken?.skipForward()
-        afterSeek()
     }
 
     override fun nextChapter() {
         engineOrNull?.spoken?.nextChapter()
-        afterSeek()
     }
 
     override fun previousChapter() {
         engineOrNull?.spoken?.previousChapter()
-        afterSeek()
-    }
-
-    /** A seek breaks the sentence anyway: a file that arrived meanwhile is taken now. */
-    private fun afterSeek() {
-        if (localCopyWaiting) useLocalCopies()
-    }
-
-    /**
-     * Points every part of the playing book that is on the phone now at its file. The part
-     * playing is moved back to where it was, so nothing is heard twice or skipped.
-     */
-    private fun useLocalCopies() {
-        localCopyWaiting = false
-        val downloads = downloads ?: return
-        val spoken = engineOrNull?.spoken ?: return
-        val book = spoken.currentBook ?: return
-        val player = spoken.player
-        for (index in 0 until minOf(player.mediaItemCount, book.parts.size)) {
-            val part = book.parts[index]
-            if (part.isHls) continue
-            val local = downloads.localFile(book.id, part.id) ?: continue
-            val item = player.getMediaItemAt(index)
-            if (item.localConfiguration?.uri == local) continue
-            val current = index == player.currentMediaItemIndex
-            val at = player.currentPosition
-            player.replaceMediaItem(index, item.buildUpon().setUri(local).build())
-            if (current) player.seekTo(index, at)
-            log.info("playback", "part ${index + 1} of ${book.id} plays from the phone now")
-        }
     }
 
     override fun setSpeed(speed: Float) {
@@ -442,6 +411,27 @@ class PlaybackModel(
         outbox.drop(serverId, bookId)
     }
 
+    /**
+     * A server was removed: a book of it in the player stops (nothing is reported to a server
+     * that is gone), the mini player forgets it, and nothing queued for it is sent.
+     */
+    fun forgetServer(serverId: String) {
+        main.launch {
+            val playing = _state.value.serverId == serverId || lastBook?.serverId == serverId
+            if (playing) {
+                startJob?.cancel()
+                engineOrNull?.spoken?.takeIf { id -> id.bookId?.let { BookId(it).serverId } == serverId }?.stop(reporting = false)
+                lastBook = null
+                lastBookFile.delete()
+                this@PlaybackModel.serverId = null
+                _state.value = PlaybackUi()
+            }
+            _resumeQuestion.update { it?.takeIf { q -> q.serverId != serverId } }
+            sessions.keys.removeAll { BookId(it).serverId == serverId }
+            outbox.forgetServer(serverId)
+        }
+    }
+
     /** A newer position the server kept: this phone takes it, unless the book is playing here. */
     private fun takeServerPosition(composite: String, progress: ListeningProgress) {
         if (engineOrNull?.spoken?.bookId == composite) return
@@ -505,7 +495,6 @@ class PlaybackModel(
                 sessions.remove(composite)
                 files.map { part(composite, it, kbps) }
             }
-            localCopyWaiting = false
             this.serverId = serverId
             val spokenBook = SpokenBook(
                 id = composite, title = full.title, author = full.authorLine.ifBlank { null }, artworkUri = full.coverUrl,
@@ -562,7 +551,7 @@ class PlaybackModel(
     }
 
     private fun connect() {
-        if (controller != null) return
+        if (controller != null || !connectsService) return
         val token = SessionToken(context, ComponentName(context, BookPlaybackService::class.java))
         controller = MediaController.Builder(context, token).buildAsync()
     }
@@ -577,14 +566,10 @@ class PlaybackModel(
             settings.prefs.collect { prefs ->
                 applyPrefs(spoken, prefs)
                 val minutes = if (network.value.dataSaver) PlaybackPrefs.CONSTRAINED_LOOK_AHEAD_MINUTES else prefs.lookAheadMinutes
-                engine.loadControl.lookAheadMs = minutes * 60_000L
+                engine.loadControl?.lookAheadMs = minutes * 60_000L
             }
         }
         main.launch { network.collect { net -> spoken.networkChanged(net.connected) } }
-        // A pause is a break in the sentence: a file that arrived while playing is taken now.
-        main.launch {
-            spoken.state.map { it.playWhenReady }.distinctUntilChanged().collect { playing -> if (!playing && localCopyWaiting) useLocalCopies() }
-        }
         main.launch {
             combine(spoken.state, settings.prefs) { s, prefs -> s to prefs }.collect { (s, prefs) -> publish(s, prefs) }
         }

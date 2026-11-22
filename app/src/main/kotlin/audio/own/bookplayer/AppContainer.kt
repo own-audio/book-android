@@ -139,7 +139,7 @@ class AppContainer(context: Context) {
         onRemoved = { id ->
             serverIcons.remove(id)
             sources.forget(id)
-            playbackModel.outbox.forgetServer(id)
+            playbackModel.forgetServer(id)
             // A removed server's downloads leave the device with it.
             scope.launch { downloads.removeAll(id) }
         },
@@ -184,7 +184,7 @@ class AppContainer(context: Context) {
         offline = offline,
         log = log,
         filesDir = app.filesDir,
-        engineFactory = { PlaybackEngine(app, linkResolver, http, userAgent, { network.state.value.connected }, kotlinx.coroutines.MainScope()) },
+        engineFactory = { PlaybackEngine.create(app, linkResolver, http, userAgent, { network.state.value.connected }, kotlinx.coroutines.MainScope()) },
         downloads = downloads,
     )
 
