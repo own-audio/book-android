@@ -265,7 +265,7 @@ class PlaybackMisuseTest {
     private class MisuseSource : FakeBookSource(books = listOf(BOOK)) {
         @Volatile var gate: CompletableDeferred<Unit>? = null
         @Volatile var failBook: Exception? = null
-        val reports: MutableList<PlaybackReport> = Collections.synchronizedList(mutableListOf())
+        val reports: MutableList<PlaybackReport> = java.util.concurrent.CopyOnWriteArrayList()
 
         override suspend fun book(id: String): Book {
             gate?.await()

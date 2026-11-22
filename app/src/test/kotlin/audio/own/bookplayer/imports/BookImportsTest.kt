@@ -53,7 +53,7 @@ class BookImportsTest {
     private val context = RuntimeEnvironment.getApplication()
     private val dir = File(context.filesDir, "imports-${System.nanoTime()}")
     private val server = MockWebServer()
-    private val requests: MutableList<RecordedRequest> = Collections.synchronizedList(mutableListOf())
+    private val requests: MutableList<RecordedRequest> = java.util.concurrent.CopyOnWriteArrayList()
 
     /** Answers for this test; null falls through to the default server. */
     private var override: (RecordedRequest) -> MockResponse? = { null }
@@ -64,7 +64,7 @@ class BookImportsTest {
         "content://docs/2" to "the second, longer file".encodeToByteArray(),
         "content://docs/3" to "third".encodeToByteArray(),
     )
-    private val released = Collections.synchronizedList(mutableListOf<String>())
+    private val released = java.util.concurrent.CopyOnWriteArrayList<String>()
     private val access = object : ImportFileAccess {
         override fun open(uri: String): InputStream? =
             documents[uri]?.let(::ByteArrayInputStream) ?: if (uri.startsWith("file:")) File(java.net.URI(uri)).inputStream() else null
@@ -74,7 +74,7 @@ class BookImportsTest {
         }
     }
     private val scheduler = object : ImportScheduler {
-        val queued = Collections.synchronizedList(mutableListOf<Pair<String, Boolean>>())
+        val queued = java.util.concurrent.CopyOnWriteArrayList<Pair<String, Boolean>>()
         override fun enqueue(importId: String, replace: Boolean) {
             queued += importId to replace
         }
@@ -82,8 +82,8 @@ class BookImportsTest {
             queued.removeAll { it.first == importId }
         }
     }
-    private val made = Collections.synchronizedList(mutableListOf<String>())
-    private val refused = Collections.synchronizedList(mutableListOf<String>())
+    private val made = java.util.concurrent.CopyOnWriteArrayList<String>()
+    private val refused = java.util.concurrent.CopyOnWriteArrayList<String>()
 
     init {
         server.dispatcher = object : Dispatcher() {

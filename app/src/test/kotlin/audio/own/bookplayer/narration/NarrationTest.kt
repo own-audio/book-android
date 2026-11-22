@@ -58,7 +58,7 @@ class NarrationTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val dir = File(context.filesDir, "narration-${System.nanoTime()}").apply { mkdirs() }
     private val server = MockWebServer()
-    private val requests: MutableList<RecordedRequest> = Collections.synchronizedList(mutableListOf())
+    private val requests: MutableList<RecordedRequest> = java.util.concurrent.CopyOnWriteArrayList()
     private var quoteStatus = 200
     private var stage = "narrating"
     private var chaptersDone = 2
@@ -101,7 +101,7 @@ class NarrationTest {
         "u1",
         OwnAudioCatalogue(Room.inMemoryDatabaseBuilder(context, BookCatalogueDatabase::class.java).allowMainThreadQueries().build()),
     )
-    private val completed = Collections.synchronizedList(mutableListOf<String>())
+    private val completed = java.util.concurrent.CopyOnWriteArrayList<String>()
     private fun narrations() = BookNarrations(File(dir, "narrations.json"), { if (it == "s1") source else null }, scope, AppLog(null, echo = false), onCompleted = { completed += it.id })
     private val ebook = File(dir, "emma.epub").apply { writeText("an ebook") }
 

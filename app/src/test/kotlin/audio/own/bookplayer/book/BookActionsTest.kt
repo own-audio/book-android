@@ -83,7 +83,7 @@ class BookActionsTest {
     @Test
     fun aBookmarkChangedInThePlayerTellsTheBookPage() = runBlocking {
         val source = FakeBookSource()
-        val told = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val told = java.util.concurrent.CopyOnWriteArrayList<String>()
         val vm = BookmarksViewModel(source, "b1", onChanged = { told += it }) { false }
         vm.load()
         eventually { vm.state.value.bookmarks?.size == 1 }
