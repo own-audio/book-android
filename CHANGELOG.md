@@ -5,6 +5,7 @@ All notable changes to own.audio Books for Android. The format follows
 
 ## [Unreleased]
 
+- A book or episode loaded to be shown paused no longer starts playing by itself after the previous one played (the shared spoken player).
 - B12: Android Auto (Continue Listening, Downloads, Library, Series, Authors, the chapters while a book plays, a speed button, search), the Continue Listening widget, ownbook://play links, the assistant ("continue listening", "continue my book", "play ‹book›") and a Continue Listening shortcut; Play on a headset or the system's controls after the app was ended resumes the last book.
 - The spoken player takes a part's real length from the file when the stated one is missing or wrong, accepts chapters that arrive after loading, and switches to a downloaded copy at the next pause or seek without losing the place.
 - Narrate an Ebook sends the same Idempotency-Key for every attempt at the same request: a retry after a lost answer never starts a second paid job.
