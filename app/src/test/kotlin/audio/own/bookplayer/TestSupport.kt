@@ -1,5 +1,7 @@
 package audio.own.bookplayer
 
+import kotlinx.coroutines.test.resetMain
+
 import audio.own.core.servers.InMemoryAddressMemory
 import audio.own.core.servers.NetworkState
 import audio.own.core.servers.SecretBox
@@ -197,6 +199,16 @@ suspend fun eventually(timeoutMs: Long = 5_000, condition: () -> Boolean) {
 
 /** View models run on Dispatchers.Main; tests give it one plain thread. */
 fun mainThread() = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+
+/**
+ * Lets the work already queued on the test's main thread finish, then puts Dispatchers.Main back.
+ * Resetting while a view model is still starting up threw on slower machines (CI).
+ */
+fun closeMain(main: kotlinx.coroutines.ExecutorCoroutineDispatcher) {
+    kotlinx.coroutines.runBlocking { kotlinx.coroutines.withContext(main) {} }
+    kotlinx.coroutines.Dispatchers.resetMain()
+    main.close()
+}
 
 /**
  * A pretend Audiobookshelf server: `/status`, `/login`, `/api/libraries`, `/api/authorize` and

@@ -1,5 +1,7 @@
 package audio.own.bookplayer.book
 
+import audio.own.bookplayer.closeMain
+
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -48,8 +50,7 @@ class BookActionsTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
-        main.close()
+        closeMain(main)
     }
 
     private fun BookViewModel.loaded(): Book = (state.value.book as Load.Loaded).value

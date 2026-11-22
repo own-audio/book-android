@@ -1,5 +1,7 @@
 package audio.own.bookplayer.browse
 
+import audio.own.bookplayer.closeMain
+
 import audio.own.book.library.BookFilter
 import audio.own.book.library.BookSort
 import audio.own.book.library.SourceException
@@ -40,8 +42,7 @@ class ScreenViewModelsTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
-        main.close()
+        closeMain(main)
     }
 
     private fun <T> Load<T>.value(): T = (this as Load.Loaded).value

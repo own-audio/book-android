@@ -130,7 +130,9 @@ class BookDownloadsTest {
     fun `removing a book removes every file of it, and nothing else`() = runBlocking {
         downloads.download("srv", book("b1"))
         downloads.download("srv", book("b2", files = 1))
+        eventually { kotlinx.coroutines.runBlocking { db.downloads().items().size } == 3 }
         downloads.remove("srv|b1")
+        eventually { kotlinx.coroutines.runBlocking { db.downloads().items().size } == 1 }
         assertEquals(listOf("srv|b2#f0"), db.downloads().items().map { it.key })
     }
 

@@ -1,5 +1,7 @@
 package audio.own.bookplayer.onboarding
 
+import audio.own.bookplayer.closeMain
+
 import audio.own.core.strings.R
 import audio.own.bookplayer.FakeOwnAudio
 import audio.own.bookplayer.ModelHarness
@@ -30,8 +32,7 @@ class SignInViewModelsTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
-        main.close()
+        closeMain(main)
         fake.close()
         harness.close()
     }

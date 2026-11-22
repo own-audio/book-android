@@ -1,5 +1,7 @@
 package audio.own.bookplayer.account
 
+import audio.own.bookplayer.closeMain
+
 import audio.own.bookplayer.FakeOwnAudio
 import audio.own.bookplayer.ModelHarness
 import audio.own.bookplayer.app.Load
@@ -34,8 +36,7 @@ class AccountPagesViewModelsTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
-        main.close()
+        closeMain(main)
         fake.close()
         harness.close()
     }
