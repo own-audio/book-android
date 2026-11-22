@@ -28,12 +28,12 @@ are described there once for all three Android apps. The foundation is built in
 | B8 | Bookmarks, favourites, finished/reset, sharing with the family | ◐ built 2026-11-21; bookmarks and reset tried on Audiobookshelf, finished/not finished on the demo; favourites unit-tested only (the demo account is read-only) |
 | B9 | Settings | ☑ 2026-11-22 (account skip intervals and speed saved to /me/settings) |
 | B10 | Import from this device (own.audio uploads) | ◐ built 2026-11-22; on the demo up to the upload (refused, read-only); a real upload waits for a writable account |
-| B11 | Narrate an ebook (hosted own.audio) | ◐ built 2026-11-22, tested against a fake server only; open: an Idempotency-Key on starting a job (needs `:kit:ownaudio`'s createNarration to take one) |
+| B11 | Narrate an ebook (hosted own.audio) | ◐ built 2026-11-22, tested against a fake server only (starting a job is idempotent) |
 | B12 | Android Auto, widget, deep links, voice, background refresh | ☐ |
 | B13 | Localization, accessibility, tablets, misuse tests | ☐ |
 | B14 | Release | ☐ |
 
-**Where we stopped:** B10 and B11 built 2026-11-22. Next: B12 (Android Auto, widget, deep links, voice), B13 polish, the guide; a writable own.audio account for the live checks; `:kit:ownaudio` createNarration with an Idempotency-Key (all three repos).
+**Where we stopped:** B10 and B11 built 2026-11-22. Next: B12 (Android Auto, widget, deep links, voice), B13 polish, the guide; a writable own.audio account for the live checks.
 
 ## Rules for whoever executes this plan
 

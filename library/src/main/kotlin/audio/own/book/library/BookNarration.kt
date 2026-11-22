@@ -29,7 +29,8 @@ interface BookNarrator : BookSource {
     /** The server's count of characters in the file; nothing is charged. */
     suspend fun narrationCharacterCount(file: File): Int
     suspend fun narrationQuote(charCount: Int, sourceLanguage: String, targetLanguage: String, voiceId: String): NarrationQuote
-    suspend fun startNarration(file: File, title: String, sourceLanguage: String, targetLanguage: String, voiceId: String, output: NarrationOutput): NarrationJob
+    /** [idempotencyKey]: the same for every attempt at one narration, so a retry never starts a second paid job. */
+    suspend fun startNarration(file: File, title: String, sourceLanguage: String, targetLanguage: String, voiceId: String, output: NarrationOutput, idempotencyKey: String): NarrationJob
     suspend fun narration(id: String): NarrationJob
 
     /**

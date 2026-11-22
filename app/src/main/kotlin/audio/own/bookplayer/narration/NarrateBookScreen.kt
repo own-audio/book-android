@@ -193,7 +193,12 @@ class NarrateBookViewModel(
         _state.update { it.copy(working = true, error = null) }
         viewModelScope.launch {
             try {
-                val job = io { narrator.startNarration(ebook.file, s.title.trim(), s.sourceLanguage, s.targetLanguage, voiceId, s.output) }
+                // The same request always gets the same key: a retry after a lost answer finds the job
+                // already started instead of paying for a second one.
+                val key = "narr-" + java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(listOf(ebook.file.absolutePath, ebook.file.length(), s.title.trim(), s.sourceLanguage, s.targetLanguage, voiceId, s.output.wire).joinToString("|").encodeToByteArray())
+                    .take(16).joinToString("") { "%02x".format(it) }
+                val job = io { narrator.startNarration(ebook.file, s.title.trim(), s.sourceLanguage, s.targetLanguage, voiceId, s.output, key) }
                 io { narrations.add(job, serverId) }
                 ebook.file.delete()
                 _state.update { it.copy(done = true) }

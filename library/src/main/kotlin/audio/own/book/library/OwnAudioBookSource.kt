@@ -433,8 +433,8 @@ class OwnAudioBookSource(
     override suspend fun narrationQuote(charCount: Int, sourceLanguage: String, targetLanguage: String, voiceId: String): NarrationQuote =
         translating { client.narrationQuote(charCount, sourceLanguage, targetLanguage, voiceId) }
 
-    override suspend fun startNarration(file: File, title: String, sourceLanguage: String, targetLanguage: String, voiceId: String, output: NarrationOutput): NarrationJob =
-        translating { client.createNarration(file, title, sourceLanguage, targetLanguage, voiceId, output) }
+    override suspend fun startNarration(file: File, title: String, sourceLanguage: String, targetLanguage: String, voiceId: String, output: NarrationOutput, idempotencyKey: String): NarrationJob =
+        translating { client.createNarration(file, title, sourceLanguage, targetLanguage, voiceId, output, idempotencyKey) }
 
     override suspend fun narration(id: String): NarrationJob = translating { client.narration(id) }
 
