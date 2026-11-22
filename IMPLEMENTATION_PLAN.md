@@ -31,7 +31,7 @@ are described there once for all three Android apps. The foundation is built in
 | B11 | Narrate an ebook (hosted own.audio) | ◐ built 2026-11-22, tested against a fake server only (starting a job is idempotent) |
 | B12 | Android Auto, widget, deep links, voice, background refresh | ◐ built 2026-11-22: browse tree, car search, speed button and the widget (placed, tapped, played) checked on the emulator; headset Play after the process ended resumes; Auto on a real head unit still to see |
 | B13 | Localization, accessibility, tablets, misuse tests | ◐ built 2026-11-22 (TalkBack names and values, headings, 48 dp targets, 200 % layouts, tablet landscape player, misuse tests); a TalkBack walk on a device still to do |
-| B14 | Release | ☐ |
+| B14 | Release | ◐ prepared 2026-11-22: release builds (8.9 MB), release workflow, store texts en/cs, guide, docs/release.md with the maintainer's steps |
 
 **Where we stopped:** B13 built 2026-11-22; PlaybackModel uses `:player:spoken`'s local-copy swap. Next: B14 release; the live checks wait for a writable own.audio account. Open question for all three apps: signing in to the same account twice saves a second server.
 
