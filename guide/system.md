@@ -1,10 +1,10 @@
 ---
-title: Android Auto, the widget and the notification
+title: Android Auto, the widgets and the notification
 nav_order: 11
-description: "own.audio Books outside the app on Android: the media notification, headset controls, the Continue Listening widget and shortcut, Google Assistant, and Android Auto."
+description: "own.audio Books outside the app on Android: the media notification, headset controls, the Player, Now Playing and Continue Listening widgets, the shortcut, Google Assistant, and Android Auto."
 ---
 
-# Android Auto, the widget and the notification
+# Android Auto, the widgets and the notification
 {: .no_toc }
 
 1. TOC
@@ -26,15 +26,23 @@ Play, pause and skip work from headphones, a Bluetooth speaker or the car. Press
 headset or in the system's media controls after the app was closed resumes the book you were
 listening to.
 
-## Widget
+## Widgets
 
-The **Continue Listening** widget ("Your last books, a tap away.") comes in two sizes:
+own.book has three home-screen widgets. They take the colors of your wallpaper (Android 12 and
+later), with the play button and the progress in the app's color, and follow light and dark mode.
 
-- **Small**: the book you were last listening to, with its cover, progress and time left.
-- **Medium**: your last three books.
+- **Player** (4×1): the cover, the book and the author, with skip back, **Play**/**Pause** and
+  skip forward, by the intervals you chose in Settings. Tap the book to open the player. On a
+  narrow strip only **Play**/**Pause** stays; stretched taller, it becomes the large player.
+- **Now Playing** (4×2): a large cover, the book, the author, the time left, how far you are, and
+  the same buttons. When no book is in the player, it shows **Continue** with the book you were
+  listening to and how much of it you have heard; **Play** goes on with it.
+- **Continue Listening** (4×2): the books you are listening to as covers, each with a thin line
+  for how far you are, as many as fit the widget's size. Tap one to open the app and play it.
 
-Tap a book in the widget to open the app and play it. To add the widget, touch and hold an
-empty spot on the home screen, tap **Widgets**, and look for own.book.
+The buttons work without opening the app. While a book plays, the progress moves on about once a
+minute. To add a widget, touch and hold an empty spot on the home screen, tap **Widgets**, and look
+for own.book. A Continue Listening widget you added before this version becomes the new one.
 
 ## Shortcut
 

@@ -4,7 +4,13 @@
     <string name="nothing_started_yet">Zatím jste nic nezačali</string>
     <string name="auto_nothing_here">Zatím tu nic není</string>
     <string name="no_chapters">Žádné kapitoly</string>
-    <string name="widget_description">Vaše poslední knihy na jedno klepnutí.</string>
+    <string name="widget_description">Knihy, které posloucháte, jako obaly s tím, kolik máte za sebou; klepnutím jednu pustíte.</string>
+    <string name="widget_continue_percent">Pokračovat · %1$d %%</string>
+    <string name="widget_percent_listened">poslechnuto %1$d %%</string>
+    <string name="widget_player_name">Přehrávač</string>
+    <string name="widget_player_description">Kniha, která hraje, s přeskočením zpět, přehráním nebo pozastavením a přeskočením vpřed.</string>
+    <string name="widget_now_playing_name">Právě hraje</string>
+    <string name="widget_now_playing_description">Velký obal, průběh a ovládání; když nic nehraje, kniha, ve které můžete pokračovat.</string>
     <string name="link_book_gone">Tahle kniha už v knihovně není.</string>
     <string name="link_no_server">Nejdřív přidejte server.</string>
     <string name="voice_nothing_found">Tomu neodpovídá žádná kniha.</string>

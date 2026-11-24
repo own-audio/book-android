@@ -13,8 +13,8 @@ import kotlin.math.roundToLong
 import kotlinx.serialization.Serializable
 
 /**
- * What the Continue Listening widget shows: the app writes it to `filesDir/widget/` whenever its
- * entries change, the widget only reads. Covers sit next to it as small JPEGs, so the widget
+ * What the widgets show besides the book playing: the last book and the books in progress. The
+ * app writes it to `filesDir/widget/` whenever its entries change, the widgets only read. Covers sit next to it as small JPEGs, so the widget
  * needs neither the network nor a sign-in. Ported from book-ios `WidgetSnapshot`.
  */
 @Serializable
@@ -40,7 +40,8 @@ data class WidgetSnapshot(val entries: List<Entry>, val atEpochMs: Long = 0) {
 
     companion object {
         const val SCHEME = "ownbook"
-        const val MAX_ENTRIES = 3
+        /** The shelf's covers at most: three rows of four on a large widget. */
+        const val MAX_ENTRIES = 12
 
         /** The link a tap opens; the composite id carries a `|`, so it is escaped whole. */
         fun playLink(id: String): Uri = "$SCHEME://play/${Uri.encode(id)}".toUri()
@@ -54,7 +55,7 @@ data class WidgetSnapshot(val entries: List<Entry>, val atEpochMs: Long = 0) {
 
         /**
          * The book in the player (or the last one) first, then the Continue Listening shelf;
-         * three at most. Fractions to the percent and time left to the minute, so a playing book
+         * [MAX_ENTRIES] at most. Fractions to the percent and time left to the minute, so a playing book
          * rewrites the file about once a minute at most, not with every tick.
          */
         fun pick(
@@ -94,9 +95,12 @@ data class WidgetSnapshot(val entries: List<Entry>, val atEpochMs: Long = 0) {
             )
         }
 
-        /** By book, not by link: own.audio's cover links carry a signature that changes. */
+        /**
+         * By book, not by link: own.audio's cover links carry a signature that changes. The `@2`
+         * names the larger pictures of the redesigned widgets, so the small old ones are made again.
+         */
         fun coverName(compositeId: String): String =
-            MessageDigest.getInstance("SHA-1").digest(compositeId.toByteArray()).joinToString("") { "%02x".format(it) }.take(20) + ".jpg"
+            MessageDigest.getInstance("SHA-1").digest("$compositeId@2".toByteArray()).joinToString("") { "%02x".format(it) }.take(20) + ".jpg"
     }
 }
 

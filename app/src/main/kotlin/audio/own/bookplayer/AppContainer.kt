@@ -43,7 +43,7 @@ import audio.own.bookplayer.playback.AutoContent
 import audio.own.bookplayer.playback.CarArtwork
 import audio.own.bookplayer.playback.CoverJpegs
 import audio.own.bookplayer.playback.PlayRequests
-import audio.own.bookplayer.widget.ContinueListeningWidget
+import audio.own.bookplayer.widget.WidgetData
 import audio.own.bookplayer.widget.WidgetSnapshot
 import audio.own.bookplayer.widget.WidgetStore
 import audio.own.bookplayer.widget.WidgetUpdater
@@ -250,7 +250,7 @@ class AppContainer(context: Context) {
 
     val widget = WidgetUpdater(
         context = app,
-        store = WidgetStore(ContinueListeningWidget.folder(app)),
+        store = WidgetStore(WidgetData.folder(app)),
         playback = playbackModel.state,
         playingCoverUrl = { playbackModel.coverUrl },
         shelf = {
@@ -336,7 +336,8 @@ class AppContainer(context: Context) {
     val logHeader: String get() = "own.book $versionName ($versionCode), Android ${Build.VERSION.RELEASE}, ${Build.MANUFACTURER} ${Build.MODEL}"
 
     private companion object {
-        const val WIDGET_COVER_PX = 160
+        /** The widgets' pictures: the big player's cover is about 150 dp across. */
+        const val WIDGET_COVER_PX = 320
     }
 
     private fun appLocale(): Locale = AppCompatDelegate.getApplicationLocales()[0] ?: Locale.getDefault()

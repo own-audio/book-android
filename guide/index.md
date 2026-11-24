@@ -65,7 +65,7 @@ buttons only appear on one kind of server.
 - [Adding books](importing.md): importing audio files to an own.audio server.
 - [Servers and family](servers.md): a server's page, addresses, family, devices and listening.
 - [Settings](settings.md): every setting, what it does and its default.
-- [Android Auto, the widget and the notification](system.md): the app outside the app.
+- [Android Auto, the widgets and the notification](system.md): the app outside the app.
 - [Privacy](privacy.md): what the app sends, and to whom.
 - [Troubleshooting](troubleshooting.md): signing in again, the log, common problems.
 

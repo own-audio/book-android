@@ -29,10 +29,10 @@ class WidgetSnapshotTest {
     )
 
     @Test
-    fun thePlayingBookComesFirstThenTheShelfThreeAtMost() {
+    fun thePlayingBookComesFirstThenTheShelf() {
         val playing = PlaybackUi(bookId = "s2|x9", serverId = "s2", title = "Emma", author = "Jane Austen", positionMs = 30 * 60_000L + 20_000, durationMs = 2 * 3_600_000L)
         val picked = WidgetSnapshot.pick(playing, "https://other.example/x9.jpg", shelf) { _, id -> progress[id] }
-        assertEquals(listOf("s2|x9", "s1|b1", "s1|b2"), picked.map { it.entry.id })
+        assertEquals(listOf("s2|x9", "s1|b1", "s1|b2", "s1|b3"), picked.map { it.entry.id })
         // Time left to the minute and the fraction to the percent: ticks don't rewrite the file.
         assertEquals(90 * 60_000L, picked[0].entry.remainingMs)
         assertEquals(0.25, picked[0].entry.fraction, 0.0)
@@ -40,6 +40,12 @@ class WidgetSnapshotTest {
         assertEquals(0.0, picked[2].entry.fraction, 0.0)
         assertEquals("https://other.example/x9.jpg", picked[0].coverUrl)
         assertEquals(WidgetSnapshot.coverName("s1|b1"), picked[1].entry.cover)
+    }
+
+    @Test
+    fun theShelfStopsAtTwelve() {
+        val many = (1..20).map { WidgetSnapshot.ShelfBook("s1", Samples.pride.copy(id = "m$it")) }
+        assertEquals(WidgetSnapshot.MAX_ENTRIES, WidgetSnapshot.pick(PlaybackUi(), null, many) { _, _ -> null }.size)
     }
 
     @Test

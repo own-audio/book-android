@@ -54,7 +54,7 @@ follow you to the other own.audio apps you sign in to.
 
 A row of colors for buttons, links and what's playing: **App Color** (the app's brown, the
 default), **Blue**, **Indigo**, **Purple**, **Red**, **Orange**, **Yellow**, **Green**,
-**Teal**, **Pink** and **Graphite**. The app icon and the widget keep the app's color.
+**Teal**, **Pink** and **Graphite**. The app icon and the widgets keep the app's color.
 
 The app follows your phone's light or dark theme.
 

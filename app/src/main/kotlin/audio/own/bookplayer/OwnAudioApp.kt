@@ -72,6 +72,7 @@ class OwnAudioApp : Application(), SingletonImageLoader.Factory, Configuration.P
             container.scope,
             merge(container.sources.active.drop(1).map { }, container.playbackModel.progressChanged, container.libraryGrew.map { }),
         )
+        container.scope.launch { audio.own.bookplayer.widget.WidgetPreviews.publish(this@OwnAudioApp, container.versionCode) }
         container.accountSettings.start()
         runCatching {
             val work = WorkManager.getInstance(this)

@@ -5,7 +5,15 @@
     <string name="nothing_started_yet">Nothing started yet</string>
     <string name="auto_nothing_here">Nothing here yet</string>
     <string name="no_chapters">No chapters</string>
-    <string name="widget_description">Your last books, a tap away.</string>
+    <string name="widget_description">The books you are listening to, as covers with how far you are; tap one to play it.</string>
+    <string name="widget_continue_percent">Continue · %1$d%%</string>
+    <string name="widget_percent_listened">%1$d%% listened</string>
+    <string name="widget_player_name">Player</string>
+    <string name="widget_player_description">The book playing, with skip back, play or pause, and skip forward.</string>
+    <string name="widget_now_playing_name">Now Playing</string>
+    <string name="widget_now_playing_description">A large cover, the progress and the controls; the book to continue when nothing plays.</string>
+    <string name="widget_sample_title" translatable="false">The Lighthouse Keeper</string>
+    <string name="widget_sample_subtitle" translatable="false">Mira Lane</string>
     <string name="link_book_gone">That book is not in the library any more.</string>
     <string name="link_no_server">Add a server first.</string>
     <string name="voice_nothing_found">No book matches that.</string>
