@@ -13,6 +13,8 @@ It talks only to:
 
 - **the servers you add**: your sign-in, requests for your library, the books and covers you
   play, your positions, bookmarks and favorites, and books you import or ask to be narrated;
+- **Apple**, only if you choose **Continue with Apple** for an own.audio server. Apple's page
+  opens in your browser; the app gets nothing from Apple directly, the own.audio server does;
 - **Google**, only if you choose **Continue with Google** for an own.audio server. This is in
   the Google Play build only; the F-Droid build has no Google code.
 

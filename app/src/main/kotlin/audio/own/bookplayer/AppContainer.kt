@@ -28,6 +28,9 @@ import audio.own.bookplayer.playback.PlaybackSettings
 import audio.own.bookplayer.servers.ServerDetector
 import audio.own.bookplayer.servers.ServerIcons
 import audio.own.bookplayer.servers.ServersModel
+import audio.own.bookplayer.apple.AppleSignIn
+import audio.own.bookplayer.apple.FilePendingAppleStore
+import audio.own.kit.ownaudio.AppleWeb
 import audio.own.book.library.BookSource
 import audio.own.book.library.OfflineBookSource
 import audio.own.bookplayer.downloads.BookDownloads
@@ -149,6 +152,15 @@ class AppContainer(context: Context) {
             // A removed server's downloads leave the device with it.
             scope.launch { downloads.removeAll(id) }
         },
+    )
+
+    /** Sign in with Apple through the browser; a sign-in waiting for it outlives the process. */
+    val appleSignIn = AppleSignIn(
+        servers = servers,
+        store = FilePendingAppleStore(File(app.noBackupFilesDir, "apple-sign-in.json")),
+        redirectUri = AppleWeb.redirectUri(app.packageName),
+        log = log,
+        scope = scope,
     )
 
     val sources: BookSources = BookSources(app, servers, log, scope, versionName)

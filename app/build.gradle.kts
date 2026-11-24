@@ -70,6 +70,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
     implementation(libs.kotlinx.coroutines.android)
+    // Sign in with Apple opens the server's page in a Custom Tab, in both builds.
+    implementation(libs.androidx.browser)
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.glance.appwidget)
 

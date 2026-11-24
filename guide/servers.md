@@ -58,7 +58,7 @@ use that one.
 
 When a server refuses the app's sign-in (for example after you changed your password), open
 the server's page and tap **Sign In Again**. Type your password and tap **Sign In**. If you
-signed up with Google, sign in the same way (Google Play build). Downloads and the library on
+signed up with Apple or Google, sign in the same way (Google: Google Play build only). Downloads and the library on
 this phone stay as they are.
 
 ## Delete Account (own.audio)
@@ -66,7 +66,7 @@ this phone stay as they are.
 **Delete Account…** deletes your account on that own.audio server for good, after asking for
 your password, with everything you added to it: music, audiobooks, podcasts, playlists and your
 listening history. What others in your family added stays with them. An account that signs in
-with Google leaves the password empty. Audiobookshelf accounts are made and removed by the
+with Apple or Google leaves the password empty. Audiobookshelf accounts are made and removed by the
 server's admin, so there is no such button for them.
 
 ## Removing a server

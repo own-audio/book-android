@@ -26,11 +26,11 @@ The card at the top is for someone without a server. own.audio keeps your audiob
 
 - **Create an own.audio Account**: fill in **Your Name**, **Email** and a **Password** of at
   least 12 characters (a few words are fine), then tap **Create Account**. The app signs in to
-  the new account straight away. own.audio emails you a link to confirm the address. In the
-  Google Play build, **Continue with Google** at the top makes the account with your Google
-  account instead.
+  the new account straight away. own.audio emails you a link to confirm the address. **Continue
+  with Apple** at the top, and in the Google Play build **Continue with Google**, make the
+  account with your Apple or Google account instead.
 - **Sign In**: for an account you already have, with your **Email** and **Password**, or
-  **Continue with Google** in the Google Play build.
+  **Continue with Apple**, or **Continue with Google** in the Google Play build.
 - **Try the Demo Library** signs in to a shared own.audio server with public-domain books, with
   no account needed. The server is called **own.audio demo** in the app. Remove it in Settings
   when you add your own.
@@ -61,12 +61,18 @@ Both kinds of server give the app a sign-in token, and the app doesn't keep your
 On Audiobookshelf the app shows book libraries only. If your account reaches none, it says
 "This account reaches no book library on that server."
 
-## Sign in with Google (own.audio)
+## Sign in with Apple or Google (own.audio)
 
-In the Google Play build, when the address you typed is an own.audio server that offers it, a
-**Continue with Google** button appears under **Connect**, with the note "With your own.audio
-account." It never appears for an Audiobookshelf address, and the F-Droid build has no Google
-sign-in. Android's account picker opens, and the app passes the result to your server.
+When the address you typed is an own.audio server that offers them, **Continue with Apple** and
+(in the Google Play build) **Continue with Google** appear under **Connect**, with the note "With
+your own.audio account." They never appear for an Audiobookshelf address.
+
+- **Continue with Apple** is in both builds. It opens Apple's sign-in page in your browser; when
+  you are done there, the browser hands you back to the app, which finishes signing in. Closing
+  the browser or tapping Cancel at Apple brings you back to the same screen with nothing changed.
+  It needs a web browser on the phone.
+- **Continue with Google** opens Android's account picker, and the app passes the result to your
+  server. The F-Droid build has no Google sign-in.
 
 ## Two-factor codes (own.audio)
 

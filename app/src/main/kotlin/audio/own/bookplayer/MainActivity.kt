@@ -95,7 +95,14 @@ class MainActivity : AppCompatActivity() {
         container.narrations.setForeground(true)
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Back from the browser without its answer: Sign in with Apple was closed.
+        container.appleSignIn.appReturned()
+    }
+
     override fun onStop() {
+        container.appleSignIn.appLeft()
         // Going to the background saves the position at once.
         container.playbackModel.saveNow()
         container.playbackModel.setForeground(false)

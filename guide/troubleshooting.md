@@ -48,6 +48,16 @@ open the server's page. In the background, or while the phone is locked, it does
 that offers Google sign-in. The F-Droid build has no Google sign-in; use your email and
 password there.
 
+## Sign in with Apple
+
+- No **Continue with Apple** button: the own.audio server doesn't offer Sign in with Apple in the
+  browser. Use your email and password, or set a password with "Forgot password" on the server's
+  web page.
+- "Sign in with Apple opens a web browser, and this device has none": install or turn on a
+  browser (Chrome, Firefox or another), then try again.
+- "That Apple sign-in has expired": the sign-in took too long or was used already. Tap
+  **Continue with Apple** again.
+
 ## Playback
 
 - **No signal — waiting**: the signal dropped. The book plays on by itself when it comes back.

@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import audio.own.core.designsystem.brand.HeroBackground
 import audio.own.core.designsystem.brand.OwnAudioMarkTribe
 import audio.own.core.designsystem.brand.RotatingWordmark
+import audio.own.core.designsystem.components.AppleSignInButton
 import audio.own.core.designsystem.components.GoogleSignInButton
 import audio.own.core.designsystem.theme.AppBrand
 import audio.own.core.designsystem.theme.LocalPalette
@@ -83,6 +84,7 @@ fun OnboardingContent(
     onName: (String) -> Unit,
     onConnect: () -> Unit,
     onGoogle: () -> Unit,
+    onApple: () -> Unit = {},
 ) {
     val palette = LocalPalette.current
     val links = LocalUriHandler.current
@@ -147,9 +149,11 @@ fun OnboardingContent(
                         Text(stringResource(R.string.connect), fontWeight = FontWeight.Bold)
                     }
                 }
-                if (showGoogle && state.googleClientId != null) {
+                val google = showGoogle && state.googleClientId != null
+                if (google || state.appleWeb) {
                     Column(verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.xs), horizontalAlignment = Alignment.CenterHorizontally) {
-                        GoogleSignInButton(onClick = onGoogle, enabled = !state.busy)
+                        if (state.appleWeb) AppleSignInButton(onClick = onApple, enabled = !state.busy)
+                        if (google) GoogleSignInButton(onClick = onGoogle, enabled = !state.busy)
                         Text(stringResource(AppR.string.with_your_own_audio_account), style = MaterialTheme.typography.bodySmall, color = palette.muted, textAlign = TextAlign.Center)
                     }
                 }

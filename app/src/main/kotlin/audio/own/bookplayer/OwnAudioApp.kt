@@ -1,6 +1,7 @@
 package audio.own.bookplayer
 
 import android.app.Application
+import audio.own.bookplayer.apple.AppleRedirects
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -18,9 +19,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 
-class OwnAudioApp : Application(), SingletonImageLoader.Factory, Configuration.Provider {
+class OwnAudioApp : Application(), SingletonImageLoader.Factory, Configuration.Provider, AppleRedirects {
     lateinit var container: AppContainer
         private set
+
+    override fun appleRedirected(code: String?, error: String?, state: String?) = container.appleSignIn.redirected(code, error, state)
 
     override fun onCreate() {
         super.onCreate()

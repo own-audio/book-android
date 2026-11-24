@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import audio.own.core.designsystem.components.AppleSignInButton
 import audio.own.core.designsystem.components.GoogleSignInButton
 import audio.own.bookplayer.ui.Section
 import audio.own.core.designsystem.theme.LocalPalette
@@ -35,6 +36,7 @@ fun AddServerContent(
     onName: (String) -> Unit,
     onConnect: () -> Unit,
     onGoogle: () -> Unit,
+    onApple: () -> Unit = {},
 ) {
     Page(title = stringResource(R.string.add_server), onBack = onCancel, closeIsCancel = true) {
         Section(header = null, footer = stringResource(AppR.string.add_server_footer)) {
@@ -54,12 +56,14 @@ fun AddServerContent(
         Section(header = null) {
             ButtonRow(stringResource(R.string.connect), onClick = onConnect, enabled = state.canConnect, working = state.connecting, color = MaterialTheme.colorScheme.primary)
         }
-        if (showGoogle && state.googleClientId != null) {
+        val google = showGoogle && state.googleClientId != null
+        if (google || state.appleWeb) {
             Column(
                 Modifier.fillMaxWidth().padding(horizontal = Tokens.Spacing.xl, vertical = Tokens.Spacing.sm),
                 verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.xs),
             ) {
-                GoogleSignInButton(onClick = onGoogle, enabled = !state.busy)
+                if (state.appleWeb) AppleSignInButton(onClick = onApple, enabled = !state.busy)
+                if (google) GoogleSignInButton(onClick = onGoogle, enabled = !state.busy)
                 Text(stringResource(AppR.string.with_your_own_audio_account), style = MaterialTheme.typography.bodySmall, color = LocalPalette.current.muted)
             }
         }

@@ -24,7 +24,8 @@ later. On the home screen it is called **own.book**.
 
 own.audio Books for Android is **not yet on Google Play**. An F-Droid build is coming too.
 The two builds are the same app, with one difference: the Google Play build can sign in to an
-own.audio server with your Google account, and the F-Droid build has no Google code at all.
+own.audio server with your Google account, and the F-Droid build has no Google code at all. Sign
+in with Apple is in both.
 
 ![The library](images/library_grid_light.png){: width="180"}
 ![The player](images/player_light.png){: width="180"}
@@ -51,7 +52,7 @@ buttons only appear on one kind of server.
 | Adding books from this phone | Yes | No |
 | Family library and sharing | Yes | No |
 | Signed-in devices, listening statistics | Yes | No |
-| Sign in with Google, two-factor codes | Yes, if the server offers them (Google: Google Play build only) | No |
+| Sign in with Apple or Google, two-factor codes | Yes, if the server offers them (Google: Google Play build only) | No |
 
 ## The guide
 
