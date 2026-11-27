@@ -12,8 +12,13 @@ import android.content.ContextWrapper
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.Check
@@ -116,7 +121,9 @@ fun TabsScreen(
             }
         },
     ) {
-        Column(Modifier.fillMaxSize()) {
+        // The navigation suite takes the navigation bar's inset only with the bottom bar; with the
+        // rail nothing else lifted the mini player above the gesture handle.
+        Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))) {
             Box(Modifier.weight(1f)) {
                 if (content != null) {
                     content(tab)

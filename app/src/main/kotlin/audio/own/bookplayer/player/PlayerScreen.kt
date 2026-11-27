@@ -87,6 +87,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.platform.testTag
 import audio.own.bookplayer.R
 import audio.own.bookplayer.browse.BookSymbol
 import audio.own.bookplayer.browse.clock
@@ -435,6 +438,15 @@ private fun androidx.compose.foundation.layout.RowScope.Tool(caption: String, la
         verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.xs),
     ) {
         Box(Modifier.heightIn(min = 24.dp), contentAlignment = Alignment.Center) { icon() }
-        Text(caption, style = MaterialTheme.typography.labelSmall, color = if (tinted) palette.accent else palette.foreground, maxLines = 1)
+        // Shrinks to fit its fifth of the row: "Rychlost" and "Bookmarks" were cut at larger text.
+        val style = MaterialTheme.typography.labelSmall
+        Text(
+            caption,
+            style = style,
+            color = if (tinted) palette.accent else palette.foreground,
+            maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 7.sp, maxFontSize = style.fontSize, stepSize = 0.5.sp),
+            modifier = Modifier.testTag("player.tool.label"),
+        )
     }
 }
