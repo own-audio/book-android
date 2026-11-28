@@ -145,6 +145,14 @@ class PlaybackModel(
     private val _resumeQuestion = MutableStateFlow<ResumeQuestion?>(null)
     val resumeQuestion: StateFlow<ResumeQuestion?> = _resumeQuestion.asStateFlow()
 
+    /** A message over whatever screen is open, until dismissed: the book in the player is gone from its server. */
+    private val _notice = MutableStateFlow<String?>(null)
+    val notice: StateFlow<String?> = _notice.asStateFlow()
+
+    fun dismissNotice() {
+        _notice.value = null
+    }
+
     private var inForeground = false
     private var progressRefresh: Job? = null
 
@@ -244,6 +252,7 @@ class PlaybackModel(
                 source.book(last.bookId)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
+                if (e == SourceException.NotFound) return bookGone(last.serverId, last.bookId)
                 kept ?: return fail(e)
             }
         }
@@ -382,9 +391,42 @@ class PlaybackModel(
      */
     suspend fun refreshProgress() {
         if (offline.isOffline) return
-        val source = sources.active.value?.source ?: return
-        if (source is ChangeFeedCatalogue) sources.sync(source)
+        val library = sources.active.value ?: return
+        val source = library.source
+        if (source is ChangeFeedCatalogue) {
+            sources.sync(source)
+            checkStillThere(library.serverId, source)
+        }
         _progressChanged.tryEmit(Unit)
+    }
+
+    /**
+     * The catalogue caught up: if it no longer has the book in the player (or the mini player),
+     * the server is asked, and a book it doesn't know either is let go of.
+     */
+    private suspend fun checkStillThere(serverId: String, source: BookSource) {
+        val loaded = _state.value.bookId?.let(::BookId) ?: lastBook?.let { BookId.of(it.serverId, it.bookId) } ?: return
+        if (loaded.serverId != serverId) return
+        val gone = try {
+            source.book(loaded.bookId)
+            false
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            e == SourceException.NotFound
+        }
+        if (gone) kotlinx.coroutines.withContext(Dispatchers.Main.immediate) { bookGone(serverId, loaded.bookId) }
+    }
+
+    /**
+     * The server says [bookId] is not there (deleted, or no longer shared): the player stops
+     * without reporting, the mini player and the saved place forget it, and the listener is told.
+     */
+    private fun bookGone(serverId: String, bookId: String) {
+        val composite = BookId.of(serverId, bookId).value
+        val shown = _state.value.bookId == composite || lastBook?.let { it.serverId == serverId && it.bookId == bookId } == true
+        log.info("playback", "the book in the player is gone from the server")
+        forgetPlayback(serverId, bookId)
+        if (shown) _notice.value = context.getString(R.string.book_gone)
     }
 
     /**
@@ -523,7 +565,7 @@ class PlaybackModel(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             log.error("playback", "couldn't start ${book.id}: ${e.message}")
-            fail(e)
+            if (e == SourceException.NotFound) bookGone(serverId, book.id) else fail(e)
         } finally {
             starting = false
             engineOrNull?.spoken?.refresh()

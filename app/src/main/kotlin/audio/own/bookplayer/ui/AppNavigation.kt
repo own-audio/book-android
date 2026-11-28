@@ -94,6 +94,7 @@ fun AppRoot(container: AppContainer) {
                 TwoFactorOverlay(container)
                 AppleBrowser(container.appleSignIn)
                 ResumeQuestionOverlay(container)
+                PlaybackNoticeOverlay(container)
             }
         }
     }
@@ -458,6 +459,9 @@ private fun PlayerRoute(container: AppContainer, onClose: () -> Unit) {
         audio.own.bookplayer.player.BookmarksViewModel(serverId?.let { container.sources.source(it) }, bookId, onChanged = container::noteBookmarksChanged) { container.offline.isOffline }
     }
     val bookmarks by bookmarksVm.state.collectAsStateWithLifecycle()
+    // The book was let go of because the server no longer has it: the message shows over the page below.
+    val notice by container.playbackModel.notice.collectAsStateWithLifecycle()
+    LaunchedEffect(notice, state.hasBook) { if (notice != null && !state.hasBook) onClose() }
     PlayerContent(
         state = state,
         actions = PlayerActions(
@@ -488,6 +492,23 @@ private fun PlayerRoute(container: AppContainer, onClose: () -> Unit) {
         ),
         onLoadBookmarks = bookmarksVm::load,
     )
+}
+
+/** "This book is no longer on the server.", over whatever screen is open. */
+@Composable
+private fun PlaybackNoticeOverlay(container: AppContainer) {
+    val notice by container.playbackModel.notice.collectAsStateWithLifecycle()
+    notice?.let { text ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = container.playbackModel::dismissNotice,
+            text = { androidx.compose.material3.Text(text) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = container.playbackModel::dismissNotice) {
+                    androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(audio.own.core.strings.R.string.ok))
+                }
+            },
+        )
+    }
 }
 
 /** "Continue from ‹device›?", over whatever screen started the book. */

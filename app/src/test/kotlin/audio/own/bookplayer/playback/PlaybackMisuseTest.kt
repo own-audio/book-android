@@ -20,6 +20,7 @@ import audio.own.book.library.Chapter
 import audio.own.book.library.ListeningProgress
 import audio.own.book.library.Person
 import audio.own.book.library.PlaybackReport
+import audio.own.book.library.SourceException
 import audio.own.bookplayer.app.AppLog
 import audio.own.bookplayer.browse.FakeBookSource
 import audio.own.bookplayer.library.ActiveLibrary
@@ -84,6 +85,19 @@ class PlaybackMisuseTest {
     private lateinit var exo: ExoPlayer
     private lateinit var spoken: SpokenPlayer
     private lateinit var model: PlaybackModel
+    private lateinit var filesDir: File
+    private val extraPlayers = mutableListOf<SpokenPlayer>()
+
+    /** The app ended and started again: a model and a player of their own over the same files. */
+    private fun relaunched(): Pair<PlaybackModel, SpokenPlayer> {
+        val player = SpokenPlayer(TestExoPlayerBuilder(context).build(), scope, idleReleaseMs = null, now = { clock }).also { extraPlayers += it }
+        val relaunched = PlaybackModel(
+            context = context, sources = sources, servers = null, settings = MemoryPlaybackSettings(), network = network,
+            offline = offline, log = AppLog(null, echo = false), filesDir = filesDir,
+            engineFactory = { PlaybackEngine(player, null) }, downloads = null, connectsService = false,
+        )
+        return relaunched to player
+    }
 
     @Before
     fun setUp() {
@@ -94,13 +108,14 @@ class PlaybackMisuseTest {
         spoken = SpokenPlayer(exo, scope, idleReleaseMs = null, now = { clock })
         model = PlaybackModel(
             context = context, sources = sources, servers = null, settings = MemoryPlaybackSettings(), network = network,
-            offline = offline, log = AppLog(null, echo = false), filesDir = folder.newFolder("files"),
+            offline = offline, log = AppLog(null, echo = false), filesDir = folder.newFolder("files").also { filesDir = it },
             engineFactory = { PlaybackEngine(spoken, null) }, downloads = null, connectsService = false,
         )
     }
 
     @After
     fun tearDown() {
+        extraPlayers.forEach { it.release() }
         spoken.release()
         scope.cancel()
     }
@@ -254,6 +269,73 @@ class PlaybackMisuseTest {
         source.failBook = null
         startPlaying()
         assertStillPlays()
+    }
+
+    @Test
+    fun `a book deleted on the server leaves the mini player with a message when Play finds it gone`() {
+        startPlaying(at = 2_000)
+        model.pause()
+        until("paused") { !model.state.value.isPlaying }
+        // The app is ended; meanwhile the book is deleted on the server.
+        val (again, player) = relaunched()
+        assertTrue("the mini player shows the last book", again.state.value.restored && again.state.value.bookId == composite)
+        source.failBook = SourceException.NotFound
+        again.toggle()
+        until("the listener told") { again.notice.value != null }
+        assertEquals(context.getString(audio.own.bookplayer.R.string.book_gone), again.notice.value)
+        assertFalse("the mini player is empty", again.state.value.hasBook)
+        assertNull(again.lastPlayed)
+        assertNull("nothing in the player", player.bookId)
+        assertNull("its place is forgotten", again.outbox.local(composite))
+        assertTrue(again.outbox.pending.none { it.bookId == BOOK.id })
+        again.dismissNotice()
+        assertNull(again.notice.value)
+        // Started once more, nothing of it is left.
+        assertFalse(relaunched().first.state.value.hasBook)
+    }
+
+    @Test
+    fun `a book the server answers 404 for, chosen to play, is not left loading`() {
+        source.failBook = SourceException.NotFound
+        model.play("s1", BOOK.copy(files = null), null)
+        until("the listener told") { model.notice.value != null }
+        assertFalse(model.state.value.hasBook)
+        assertNull("no failure left on a book that is not there", model.state.value.error)
+        source.failBook = null
+        startPlaying()
+        assertStillPlays()
+    }
+
+    @Test
+    fun `the catalogue catching up without the playing book stops it and says why`() = runBlocking {
+        val feed = FeedSource()
+        known["s1"] = feed
+        sources.active.value = ActiveLibrary(
+            audio.own.core.servers.ServerRecord("s1", "own_audio", "Home", "https://s1.example.com", audio.own.core.servers.ServerAuth.OwnAudio("a@example.com", null)),
+            feed,
+        )
+        startPlaying(at = 1_000)
+        model.refreshProgress()
+        assertNull("a book still there plays on", model.notice.value)
+        assertEquals(composite, spoken.bookId)
+        feed.deleted = true
+        model.refreshProgress()
+        until("the listener told") { model.notice.value != null }
+        assertNull("the player let go of it", spoken.bookId)
+        assertEquals("nothing left to play", 0, exo.mediaItemCount)
+        assertFalse(model.state.value.hasBook)
+        assertNull(model.lastPlayed)
+    }
+
+    /** An own.audio-like source with a catalogue on the phone, whose book can be deleted on the server. */
+    private class FeedSource : FakeBookSource(books = listOf(BOOK)), ChangeFeedCatalogue {
+        @Volatile var deleted = false
+
+        override suspend fun book(id: String): Book = if (deleted) throw SourceException.NotFound else super.book(id)
+        override suspend fun progress(bookId: String): ListeningProgress? = null
+        override suspend fun syncCatalogue() = audio.own.book.library.CatalogueSummary(1, 1, null)
+        override suspend fun catalogueSummary() = audio.own.book.library.CatalogueSummary(1, 1, null)
+        override suspend fun resetCatalogue() = Unit
     }
 
     private fun assertEquals(message: String, expected: Long, actual: Long, delta: Double) =

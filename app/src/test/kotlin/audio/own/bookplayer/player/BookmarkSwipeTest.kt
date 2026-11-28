@@ -11,6 +11,13 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipeRight
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.unit.dp
 import audio.own.book.library.Bookmark
 import audio.own.core.designsystem.theme.AccentChoice
@@ -62,6 +69,33 @@ class BookmarkSwipeTest {
         compose.onNodeWithTag("bookmark.60000").performTouchInput { swipeLeft() }
         compose.waitForIdle()
         assertEquals("each swipe deletes once", listOf("m1", "m1"), deleted)
+    }
+
+    @Test
+    fun aSwipeToRenameOpensTheDialogAndSavesTheNewLabelOnce() {
+        val renamed = mutableListOf<Pair<String, String>>()
+        val list = mutableStateOf(listOf(bookmark("m1", 60_000, "Start")))
+        // Before the dialog's field was state-based, the screen never went idle once it showed.
+        rows({ list.value }, BookmarkActions(onRename = { b, label -> renamed += b.id to label; list.value = list.value.map { if (it.id == b.id) it.copy(label = label) else it } }, onDelete = {}))
+        compose.onNodeWithTag("bookmark.60000").performTouchInput { swipeRight() }
+        compose.waitForIdle()
+        compose.onNodeWithText("Rename Bookmark").assertIsDisplayed()
+        compose.onNodeWithTag("bookmark.label").assert(hasText("Start")).performTextReplacement("Netherfield")
+        compose.onNodeWithText("Save").performClick()
+        compose.waitForIdle()
+        assertEquals("one swipe, one rename", listOf("m1" to "Netherfield"), renamed)
+        compose.onNodeWithText("Rename Bookmark").assertDoesNotExist()
+        compose.onNodeWithText("Netherfield").assertIsDisplayed()
+        assertInPlace("bookmark.60000")
+        // Cancel changes nothing, and the next swipe opens the dialog again.
+        compose.onNodeWithTag("bookmark.60000").performTouchInput { swipeRight() }
+        compose.waitForIdle()
+        compose.onNodeWithTag("bookmark.label").assert(hasText("Netherfield"))
+        compose.onNodeWithText("Cancel").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Rename Bookmark").assertDoesNotExist()
+        assertEquals(1, renamed.size)
+        assertInPlace("bookmark.60000")
     }
 
     @Test

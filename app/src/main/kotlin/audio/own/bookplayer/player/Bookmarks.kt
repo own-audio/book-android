@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -217,20 +219,21 @@ fun BookmarkRow(bookmark: Bookmark, actions: BookmarkActions, horizontalPadding:
 /** "New Bookmark" and "Rename Bookmark": one text field, Cancel and the confirming word. */
 @Composable
 fun LabelDialog(title: String, placeholder: String, initial: String, confirm: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
-    var text by rememberSaveable { mutableStateOf(initial) }
+    // The state-based field: the value-based one in a dialog window never let the screen go idle
+    // under test (Robolectric), even disabled; this one does, and the old one is deprecated.
+    val text = rememberTextFieldState(initial)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
             OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
+                state = text,
                 placeholder = { Text(placeholder) },
-                singleLine = true,
+                lineLimits = TextFieldLineLimits.SingleLine,
                 modifier = Modifier.fillMaxWidth().testTag("bookmark.label"),
             )
         },
-        confirmButton = { TextButton(onClick = { onConfirm(text) }) { Text(confirm) } },
+        confirmButton = { TextButton(onClick = { onConfirm(text.text.toString()) }) { Text(confirm) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(SR.string.cancel)) } },
     )
 }

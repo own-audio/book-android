@@ -26,7 +26,7 @@ import org.robolectric.annotation.Config
 
 /**
  * A row that stays in its list, swiped both ways, as a bookmark's (Rename and Delete). The
- * rename dialog itself never idles under Robolectric, so the row here stands in for it.
+ * bookmark row with its rename dialog is tested end to end in BookmarkSwipeTest.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "w411dp-h900dp-xxhdpi")

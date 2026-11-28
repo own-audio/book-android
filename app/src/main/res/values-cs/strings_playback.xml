@@ -3,4 +3,5 @@
     <string name="part_n">Část %1$d</string>
     <string name="chapter_n">Kapitola %1$d</string>
     <string name="playback_failed">Tuto část knihy se nepodařilo přehrát.</string>
+    <string name="book_gone">Tato kniha už na serveru není.</string>
 </resources>

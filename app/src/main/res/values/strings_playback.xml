@@ -4,4 +4,5 @@
     <string name="part_n">Part %1$d</string>
     <string name="chapter_n">Chapter %1$d</string>
     <string name="playback_failed">This part of the book couldn\'t be played.</string>
+    <string name="book_gone">This book is no longer on the server.</string>
 </resources>

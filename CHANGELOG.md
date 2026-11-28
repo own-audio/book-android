@@ -5,6 +5,13 @@ All notable changes to own.audio Books for Android. The format follows
 
 ## [Unreleased]
 
+- The download notification shows at once when a download starts, and progress updates it at most about once a second and only when the percent changes. Progress twice a second next to the player's own notification went over Android's limit of five a second per app, and the download's notification came seconds late or not at all.
+- A file whose audio starts after some junk bytes downloads when the server says it is audio (`audio/*`) or its name has an audio extension: the first 16 KB are searched for a real start (an ID3 tag, two MPEG frames in a row, ADTS, `ftyp`, FLAC, Ogg, WAVE, Matroska). An Audiobookshelf book had MP3s with 384 bytes before the first frame and failed with "The server did not send the file". HTML and JSON error pages are still refused.
+- Release bundles ask for the native libraries' symbol tables (`debugSymbolLevel = SYMBOL_TABLE`). The two native libraries in the app today (from AndroidX graphics-path and DataStore) arrive already stripped, so Play's "native code without debug symbols" warning stays until they ship symbols.
+- A book deleted on the server (or no longer shared) no longer stays in the mini player: when the own.audio catalogue catches up without it, or loading it answers "not found", the player lets go of it without reporting a position, the mini player and the saved place forget it, and "This book is no longer on the server." shows over the screen (Czech too). Before, a tap opened the player and nothing played, with no message.
+- The book page shows where the listener is (the "left" and Continue Listening) as soon as it opens, from this phone's own position and the catalogue's copy, and keeps it when the server's answer fails; the newer of the phone's and the server's wins. A book opened from Search before anything played showed only its length and Play (NAS test, 2026-11-22).
+- The New Bookmark and Rename Bookmark dialogs use Compose's state-based text field (`TextFieldState`) in place of the deprecated value-based one. Under Robolectric the old field inside any dialog window kept the screen from ever going idle, even disabled or read-only (focus and the cursor were not the cause), so swipe-to-rename could not be tested; it now is, end to end.
+
 ## [1.0.0] - 2026-11-28
 
 First release on Google Play (closed test).

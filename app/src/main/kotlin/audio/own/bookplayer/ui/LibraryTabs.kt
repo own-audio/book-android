@@ -305,6 +305,11 @@ private fun TabHost(
                     markFinished = { book, finished -> container.playbackModel.markFinished(serverId, book, finished) },
                     resetProgress = { book -> container.playbackModel.resetProgress(serverId, book) },
                     onShared = { (container.sources.source(serverId) as? audio.own.book.library.ChangeFeedCatalogue)?.let { container.scope.launch { container.sources.sync(it) } } },
+                    keptProgress = {
+                        val mine = container.playbackModel.outbox.local(BookId.of(serverId, id).value)
+                        val catalogue = (container.sources.source(serverId) as? audio.own.book.library.ChangeFeedCatalogue)?.allProgress()?.get(id)
+                        listOfNotNull(mine, catalogue).maxByOrNull { it.updatedAt }
+                    },
                 )
             }
             val state by vm.state.collectAsStateWithLifecycle()

@@ -150,6 +150,12 @@ class BookViewModel(
     private val resetProgress: suspend (Book) -> Unit = { book -> source?.clearProgress(book.id) },
     /** After a change of who sees the book: the catalogue catches up. */
     private val onShared: () -> Unit = {},
+    /**
+     * Where the listener is as the phone knows it, without asking the server: this phone's own
+     * position and the catalogue's copy, the newer of them. Shown at once, kept when the server
+     * can't be asked, and taken over the server's when it is newer (not sent yet).
+     */
+    private val keptProgress: suspend () -> ListeningProgress? = { null },
 ) : ViewModel() {
     private val _state = MutableStateFlow(
         BookState(book = known?.let { Load.Loaded(it) } ?: Load.Loading, canFavourite = Capability.FAVOURITES in source?.capabilities.orEmpty()).withSharing(known),
@@ -168,6 +174,11 @@ class BookViewModel(
     fun load() {
         val source = source ?: return
         viewModelScope.launch {
+            // A book opened before anything played (from Search, say) shows its place before the server answers.
+            if (_state.value.progress == null) {
+                val kept = keptProgressOrNull()
+                if (kept != null) _state.update { it.copy(progress = it.progress ?: kept) }
+            }
             val shown = book
             if (shown?.files == null) {
                 try {
@@ -181,6 +192,21 @@ class BookViewModel(
             }
             refresh()
         }
+    }
+
+    private suspend fun keptProgressOrNull(): ListeningProgress? = try {
+        keptProgress()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        null
+    }
+
+    private fun newer(a: ListeningProgress?, b: ListeningProgress?): ListeningProgress? = when {
+        a == null -> b
+        b == null -> a
+        b.updatedAt.isAfter(a.updatedAt) -> b
+        else -> a
     }
 
     private var bookmarkEdit: Int? = null
@@ -200,12 +226,18 @@ class BookViewModel(
     fun refresh() {
         val source = source ?: return
         viewModelScope.launch {
-            val progress = try {
-                source.progress(bookId)
+            val server = try {
+                Result.success(source.progress(bookId))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.value.progress
+                Result.failure(e)
+            }
+            val kept = keptProgressOrNull()
+            val progress = if (server.isSuccess) {
+                newer(server.getOrNull(), kept)
+            } else {
+                newer(_state.value.progress, kept)
             }
             val offline = isOffline()
             _state.update { it.copy(progress = progress, offline = offline) }
