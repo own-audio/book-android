@@ -1,1 +1,1 @@
-První testovací verze own.audio Books pro Android. Přehrává vaše audioknihy z own.audio a Audiobookshelfu. Připomínky: hello@own.audio
+První testovací verze own.audio Books pro Android. Přehrává vaše audioknihy z own.audio a Audiobookshelfu, s kapitolami, záložkami, časovačem spánku a stahováním pro poslech offline. Připomínky: hello@own.audio

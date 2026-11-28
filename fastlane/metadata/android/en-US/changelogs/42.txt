@@ -1,1 +1,1 @@
-First test version of own.audio Books for Android. Listens to your audiobooks from own.audio and Audiobookshelf. Feedback: hello@own.audio
+First test version of own.audio Books for Android. Plays your audiobooks from own.audio and Audiobookshelf, with chapters, bookmarks, sleep timer and offline downloads. Feedback: hello@own.audio
