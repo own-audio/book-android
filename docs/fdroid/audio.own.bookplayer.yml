@@ -1,0 +1,29 @@
+Categories:
+  - Multimedia
+License: MPL-2.0
+AuthorName: own.audio
+AuthorEmail: hello@own.audio
+WebSite: https://www.own.audio/apps/
+SourceCode: https://github.com/own-audio/book-android
+IssueTracker: https://github.com/own-audio/book-android/issues
+Changelog: https://github.com/own-audio/book-android/blob/HEAD/CHANGELOG.md
+
+AutoName: own.audio Books
+
+RepoType: git
+Repo: https://github.com/own-audio/book-android.git
+
+Builds:
+  - versionName: 1.0.1
+    versionCode: 47
+    commit: v1.0.1
+    subdir: app
+    gradle:
+      - foss
+    gradleprops:
+      - app.versionCode=47
+
+AutoUpdateMode: None
+UpdateCheckMode: Tags
+CurrentVersion: 1.0.1
+CurrentVersionCode: 47
