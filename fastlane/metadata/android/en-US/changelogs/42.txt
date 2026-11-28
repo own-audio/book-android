@@ -1,0 +1,1 @@
+First test version of own.audio Books for Android. Listens to your audiobooks from own.audio and Audiobookshelf. Feedback: hello@own.audio
